@@ -134,14 +134,12 @@ ext install claude-code-chat
 #### Option 2: Install from This Fork (Includes NVM Integration)
 Since this is a fork with NVM integration, you'll need to build and install it manually:
 
-**⚠️ Important**: The VSIX file is NOT included in this repository (it's excluded by .gitignore as it's a build artifact). You must build it first!
-
-1. **Build the VSIX file**:
+1. **Clone and build the extension**:
    ```bash
    git clone https://github.com/gyasis/claude-code-chat.git
    cd claude-code-chat
    npm install
-   npm run vscode:prepublish
+   npm run compile
    npx @vscode/vsce package
    ```
    This will create `claude-code-chat-1.0.5.vsix` in the project directory.
@@ -165,14 +163,23 @@ cd claude-code-chat
 ```
 This script will automatically build the VSIX file and install it for you.
 
-#### Option 4: Build from Source (Manual)
+#### Option 4: Build from Source (Detailed Steps)
 ```bash
+# 1. Clone the repository
 git clone https://github.com/gyasis/claude-code-chat.git
 cd claude-code-chat
+
+# 2. Install dependencies
 npm install
+
+# 3. Compile TypeScript to JavaScript
 npm run compile
+
+# 4. Package into VSIX file
 npx @vscode/vsce package
-# Then install the generated .vsix file manually
+
+# 5. Install the generated VSIX file
+code --install-extension claude-code-chat-1.0.5.vsix
 ```
 
 3. **Open Claude Code Chat**
@@ -302,15 +309,25 @@ This ensures all terminal operations use your preferred Node.js environment inst
 
 ---
 
-## 📦 **Why No Pre-built VSIX?**
+## 🔧 **Build Troubleshooting**
 
-This repository doesn't include a pre-built `.vsix` file because:
-- **Build artifacts are excluded** by `.gitignore` (standard practice)
-- **VSIX files are generated** from source code and can be recreated anytime
-- **Version control** should focus on source code, not compiled outputs
-- **Anyone can build** their own VSIX using the provided scripts
+### Common Issues
 
-The installation script (`./install.sh`) automatically handles the build process for you!
+**"command not found: code"**
+- Install VS Code CLI: `npm install -g @vscode/vsce`
+- Or install manually through VS Code UI
+
+**"npm run compile failed"**
+- Make sure you have Node.js installed
+- Try: `npm install` then `npm run compile`
+
+**"vsce package failed"**
+- Install vsce globally: `npm install -g @vscode/vsce`
+- Or use npx: `npx @vscode/vsce package`
+
+**"Permission denied"**
+- Make sure the install script is executable: `chmod +x install.sh`
+- Or run manually: `./install.sh`
 
 ---
 
