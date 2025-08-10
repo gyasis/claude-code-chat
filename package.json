@@ -185,6 +185,16 @@
           "type": "boolean",
           "default": false,
           "description": "Enable Yolo Mode to skip all permission checks. Use with caution as Claude can execute any command without asking."
+        },
+        "claudeCodeChat.nvm.version": {
+          "type": "string",
+          "default": "",
+          "description": "NVM version to use in terminals (e.g., '22.9.0'). Leave empty to use system default."
+        },
+        "claudeCodeChat.nvm.enabled": {
+          "type": "boolean",
+          "default": false,
+          "description": "Enable NVM integration for terminal commands"
         }
       }
     }

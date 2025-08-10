@@ -946,12 +946,14 @@ class ClaudeChatProvider {
 		const claudePath = config.get<string>('wsl.claudePath', '/usr/local/bin/claude');
 
 		// Open terminal and run claude login
-		const terminal = vscode.window.createTerminal('Claude Login');
+		let command: string;
 		if (wslEnabled) {
-			terminal.sendText(`wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath}`);
+			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath}`;
 		} else {
-			terminal.sendText('claude');
+			command = 'claude';
 		}
+		
+		const terminal = this._createTerminalWithNVM('Claude Login', command);
 		terminal.show();
 
 		// Show info message
@@ -2229,6 +2231,27 @@ class ClaudeChatProvider {
 		}
 	}
 
+	private _createTerminalWithNVM(name: string, command: string): vscode.Terminal {
+		const config = vscode.workspace.getConfiguration('claudeCodeChat');
+		const nvmEnabled = config.get<boolean>('nvm.enabled', false);
+		const nvmVersion = config.get<string>('nvm.version', '');
+		
+		const terminal = vscode.window.createTerminal(name);
+		
+		// If NVM is enabled and a version is specified, set up the environment first
+		if (nvmEnabled && nvmVersion) {
+			// Load NVM and use the specified version with error handling
+			terminal.sendText(`export NVM_DIR="$HOME/.nvm"`);
+			terminal.sendText(`[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"`);
+			terminal.sendText(`nvm use ${nvmVersion} || echo "Warning: Failed to use NVM version ${nvmVersion}"`);
+		}
+		
+		// Send the actual command
+		terminal.sendText(command);
+		
+		return terminal;
+	}
+
 	private _openModelTerminal(): void {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
@@ -2245,12 +2268,14 @@ class ClaudeChatProvider {
 		}
 
 		// Create terminal with the claude /model command
-		const terminal = vscode.window.createTerminal('Claude Model Selection');
+		let command: string;
 		if (wslEnabled) {
-			terminal.sendText(`wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`);
+			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			terminal.sendText(`claude ${args.join(' ')}`);
+			command = `claude ${args.join(' ')}`;
 		}
+		
+		const terminal = this._createTerminalWithNVM('Claude Model Selection', command);
 		terminal.show();
 
 		// Show info message
@@ -2282,12 +2307,14 @@ class ClaudeChatProvider {
 		}
 
 		// Create terminal with the claude command
-		const terminal = vscode.window.createTerminal(`Claude /${command}`);
+		let commandString: string;
 		if (wslEnabled) {
-			terminal.sendText(`wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`);
+			commandString = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			terminal.sendText(`claude ${args.join(' ')}`);
+			commandString = `claude ${args.join(' ')}`;
 		}
+		
+		const terminal = this._createTerminalWithNVM(`Claude /${command}`, commandString);
 		terminal.show();
 
 		// Show info message
