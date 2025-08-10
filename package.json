@@ -1,13 +1,13 @@
 {
-  "name": "claude-code-chat",
-  "displayName": "Claude Code Chat",
-  "description": "Beautiful Claude Code Chat Interface for VS Code",
-  "version": "1.0.5",
-  "publisher": "AndrePimenta",
-  "author": "Andre Pimenta",
+  "name": "claude-code-chat-sam",
+  "displayName": "Claude Code Chat SAM (Super Awesome Modification)",
+  "description": "Beautiful Claude Code Chat Interface for VS Code with NVM Integration",
+  "version": "1.0.6",
+  "publisher": "gyasis",
+  "author": "gyasis (fork of original by Andre Pimenta)",
   "repository": {
     "type": "git",
-    "url": "https://github.com/andrepimenta/claude-code-chat"
+    "url": "https://github.com/gyasis/claude-code-chat"
   },
   "license": "SEE LICENSE IN LICENSE",
   "engines": {

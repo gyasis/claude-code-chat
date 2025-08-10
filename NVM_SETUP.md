@@ -35,14 +35,12 @@ This modified extension adds NVM support that:
 
 When you execute a command that opens a terminal:
 
-1. The extension creates a new terminal
-2. If NVM is enabled, it automatically runs:
+1. The extension configures terminal options with the proper environment
+2. If NVM is enabled, it sets up shell arguments to run NVM commands before the main command:
    ```bash
-   export NVM_DIR="$HOME/.nvm"
-   [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
-   nvm use 22.9.0
+   export NVM_DIR="$HOME/.nvm" && [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && nvm use 22.9.0 && [your-claude-command]
    ```
-3. Then it executes your Claude command
+3. The terminal is created with these pre-configured commands, ensuring the NVM environment is loaded before running Claude
 
 ## Installation
 

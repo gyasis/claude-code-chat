@@ -2235,20 +2235,32 @@ class ClaudeChatProvider {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const nvmEnabled = config.get<boolean>('nvm.enabled', false);
 		const nvmVersion = config.get<string>('nvm.version', '');
-		
-		const terminal = vscode.window.createTerminal(name);
-		
-		// If NVM is enabled and a version is specified, set up the environment first
+
+		let terminalOptions: vscode.TerminalOptions = {
+			name: name,
+			env: {} // Initialize an empty environment object
+		};
+
 		if (nvmEnabled && nvmVersion) {
-			// Load NVM and use the specified version with error handling
-			terminal.sendText(`export NVM_DIR="$HOME/.nvm"`);
-			terminal.sendText(`[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"`);
-			terminal.sendText(`nvm use ${nvmVersion} || echo "Warning: Failed to use NVM version ${nvmVersion}"`);
+			// Construct the NVM setup commands
+			const nvmDir = process.env.NVM_DIR || `${process.env.HOME}/.nvm`; // Use existing NVM_DIR or default
+			const nvmSetupCommands = [
+				`export NVM_DIR="${nvmDir}"`,
+				`[ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"`,
+				`nvm use ${nvmVersion}`
+			].join(' && ');
+
+			// Set the shell path and arguments to execute the NVM setup commands before the actual command
+			terminalOptions.shellArgs = ['-c', `${nvmSetupCommands} && ${command}`];
+			terminalOptions.shellPath = process.env.SHELL || '/bin/bash'; // Use user's shell or default to bash
+
+		} else {
+			terminalOptions.shellArgs = ['-c', command];
+			terminalOptions.shellPath = process.env.SHELL || '/bin/bash';
 		}
-		
-		// Send the actual command
-		terminal.sendText(command);
-		
+
+		const terminal = vscode.window.createTerminal(terminalOptions);
+
 		return terminal;
 	}
 
