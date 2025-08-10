@@ -126,14 +126,38 @@ Ditch the command line and experience Claude Code like never before. This extens
 
 ### Installation
 
-1. **Install from VS Code Marketplace**
-   ```
-   ext install claude-code-chat
-   ```
+#### Option 1: Install from VS Code Marketplace (Original Version)
+```
+ext install claude-code-chat
+```
 
-2. **Or install manually**
-   - Download the `.vsix` file from releases
-   - Run `code --install-extension claude-code-chat-x.x.x.vsix`
+#### Option 2: Install from This Fork (Includes NVM Integration)
+Since this is a fork with NVM integration, you'll need to install it manually:
+
+1. **Download the VSIX file**:
+   - The compiled extension is available as `claude-code-chat-1.0.5.vsix` in this repository
+   - Or build it yourself: `npm run vscode:prepublish && npx @vscode/vsce package`
+
+2. **Install the VSIX**:
+   - **Method A**: In VS Code, go to Extensions → "..." → "Install from VSIX" → Select the `.vsix` file
+   - **Method B**: Command line: `code --install-extension claude-code-chat-1.0.5.vsix`
+   - **Method C**: Drag and drop the `.vsix` file into VS Code
+
+3. **Configure NVM Integration** (Optional but Recommended):
+   - Open VS Code Settings (Ctrl/Cmd + ,)
+   - Search for "Claude Code Chat"
+   - Enable "NVM Integration for terminal commands"
+   - Set "NVM version to use in terminals" to your preferred version (e.g., "22.9.0")
+
+#### Option 3: Build from Source
+```bash
+git clone https://github.com/gyasis/claude-code-chat.git
+cd claude-code-chat
+npm install
+npm run compile
+npx @vscode/vsce package
+# Then install the generated .vsix file
+```
 
 3. **Open Claude Code Chat**
    - Press `Ctrl+Shift+C` (or `Cmd+Shift+C` on Mac)
@@ -235,6 +259,30 @@ Example configuration in `settings.json`:
   "claudeCodeChat.wsl.claudePath": "/usr/local/bin/claude"
 }
 ```
+
+### NVM Integration (This Fork Only) ⭐ **NEW**
+This fork includes NVM (Node Version Manager) integration to ensure terminal commands use your preferred Node.js environment:
+
+1. Open VS Code Settings (`Ctrl+,` or `Cmd+,`)
+2. Search for "Claude Code Chat"
+3. Configure these settings:
+   - **Claude Code Chat: NVM Enabled** - Enable NVM integration
+   - **Claude Code Chat: NVM Version** - Specify your Node.js version (e.g., `22.9.0`)
+
+Example configuration in `settings.json`:
+```json
+{
+  "claudeCodeChat.nvm.enabled": true,
+  "claudeCodeChat.nvm.version": "22.9.0"
+}
+```
+
+**How it works**: When you execute commands that open terminals (like `/terminal-setup`), the extension automatically:
+1. Loads your NVM environment
+2. Switches to the specified Node.js version
+3. Then executes the Claude command
+
+This ensures all terminal operations use your preferred Node.js environment instead of the system default.
 
 ---
 
