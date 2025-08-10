@@ -532,7 +532,7 @@ class ClaudeChatProvider {
 		} else {
 			// Use native claude command
 			console.log('Using native Claude command');
-			claudeProcess = cp.spawn('claude', args, {
+			claudeProcess = cp.spawn('/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude', args, {
 				shell: process.platform === 'win32',
 				cwd: cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
@@ -950,7 +950,7 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath}`;
 		} else {
-			command = 'claude';
+			command = '/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude';
 		}
 		
 		const terminal = this._createTerminalWithNVM('Claude Login', command);
@@ -2284,7 +2284,7 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			command = `claude ${args.join(' ')}`;
+			command = `/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude ${args.join(' ')}`;
 		}
 		
 		const terminal = this._createTerminalWithNVM('Claude Model Selection', command);
@@ -2323,7 +2323,7 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			commandString = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			commandString = `claude ${args.join(' ')}`;
+			commandString = `/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude ${args.join(' ')}`;
 		}
 		
 		const terminal = this._createTerminalWithNVM(`Claude /${command}`, commandString);
