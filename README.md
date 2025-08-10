@@ -132,11 +132,19 @@ ext install claude-code-chat
 ```
 
 #### Option 2: Install from This Fork (Includes NVM Integration)
-Since this is a fork with NVM integration, you'll need to install it manually:
+Since this is a fork with NVM integration, you'll need to build and install it manually:
 
-1. **Download the VSIX file**:
-   - The compiled extension is available as `claude-code-chat-1.0.5.vsix` in this repository
-   - Or build it yourself: `npm run vscode:prepublish && npx @vscode/vsce package`
+**⚠️ Important**: The VSIX file is NOT included in this repository (it's excluded by .gitignore as it's a build artifact). You must build it first!
+
+1. **Build the VSIX file**:
+   ```bash
+   git clone https://github.com/gyasis/claude-code-chat.git
+   cd claude-code-chat
+   npm install
+   npm run vscode:prepublish
+   npx @vscode/vsce package
+   ```
+   This will create `claude-code-chat-1.0.5.vsix` in the project directory.
 
 2. **Install the VSIX**:
    - **Method A**: In VS Code, go to Extensions → "..." → "Install from VSIX" → Select the `.vsix` file
@@ -149,14 +157,22 @@ Since this is a fork with NVM integration, you'll need to install it manually:
    - Enable "NVM Integration for terminal commands"
    - Set "NVM version to use in terminals" to your preferred version (e.g., "22.9.0")
 
-#### Option 3: Build from Source
+#### Option 3: Use the Installation Script (Easiest)
+```bash
+git clone https://github.com/gyasis/claude-code-chat.git
+cd claude-code-chat
+./install.sh
+```
+This script will automatically build the VSIX file and install it for you.
+
+#### Option 4: Build from Source (Manual)
 ```bash
 git clone https://github.com/gyasis/claude-code-chat.git
 cd claude-code-chat
 npm install
 npm run compile
 npx @vscode/vsce package
-# Then install the generated .vsix file
+# Then install the generated .vsix file manually
 ```
 
 3. **Open Claude Code Chat**
@@ -283,6 +299,18 @@ Example configuration in `settings.json`:
 3. Then executes the Claude command
 
 This ensures all terminal operations use your preferred Node.js environment instead of the system default.
+
+---
+
+## 📦 **Why No Pre-built VSIX?**
+
+This repository doesn't include a pre-built `.vsix` file because:
+- **Build artifacts are excluded** by `.gitignore` (standard practice)
+- **VSIX files are generated** from source code and can be recreated anytime
+- **Version control** should focus on source code, not compiled outputs
+- **Anyone can build** their own VSIX using the provided scripts
+
+The installation script (`./install.sh`) automatically handles the build process for you!
 
 ---
 
