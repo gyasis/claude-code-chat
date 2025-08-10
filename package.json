@@ -2,7 +2,7 @@
   "name": "claude-code-chat-sam",
   "displayName": "Claude Code Chat SAM (Super Awesome Modification)",
   "description": "Beautiful Claude Code Chat Interface for VS Code with NVM Integration",
-  "version": "1.0.6",
+  "version": "1.0.6-a",
   "publisher": "gyasis",
   "author": "gyasis (fork of original by Andre Pimenta)",
   "repository": {
@@ -195,6 +195,16 @@
           "type": "boolean",
           "default": false,
           "description": "Enable NVM integration for terminal commands"
+        },
+        "claudeCodeChat.claudePath": {
+          "type": "string",
+          "default": "",
+          "description": "Full path to Claude CLI binary. Leave empty for auto-discovery."
+        },
+        "claudeCodeChat.autoDiscovery": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically discover Claude CLI installations"
         }
       }
     }

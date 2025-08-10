@@ -2,9 +2,135 @@ import * as vscode from 'vscode';
 import * as cp from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
+import * as fs from 'fs';
 import getHtml from './ui';
 
 const exec = util.promisify(cp.exec);
+
+interface ClaudeInstallation {
+	path: string;
+	version: string;
+	source: 'nvm' | 'global' | 'local';
+	nodeVersion?: string;
+}
+
+// Auto-discover Claude CLI installations
+async function discoverClaudeInstallations(): Promise<ClaudeInstallation[]> {
+	const installations: ClaudeInstallation[] = [];
+	const homeDir = process.env.HOME || process.env.USERPROFILE || '';
+	
+	try {
+		// 1. Check NVM installations
+		const nvmDir = process.env.NVM_DIR || path.join(homeDir, '.nvm');
+		const nvmVersionsDir = path.join(nvmDir, 'versions', 'node');
+		
+		if (fs.existsSync(nvmVersionsDir)) {
+			const nodeVersions = fs.readdirSync(nvmVersionsDir);
+			
+			for (const nodeVersion of nodeVersions) {
+				const claudePath = path.join(nvmVersionsDir, nodeVersion, 'bin', 'claude');
+				if (fs.existsSync(claudePath)) {
+					try {
+						const { stdout } = await exec(`"${claudePath}" --version`);
+						installations.push({
+							path: claudePath,
+							version: stdout.trim(),
+							source: 'nvm',
+							nodeVersion
+						});
+					} catch {
+						// Version check failed, but file exists
+						installations.push({
+							path: claudePath,
+							version: 'unknown',
+							source: 'nvm',
+							nodeVersion
+						});
+					}
+				}
+			}
+		}
+		
+		// 2. Check global installations
+		const globalPaths = [
+			'/usr/local/bin/claude',
+			'/usr/bin/claude',
+			path.join(homeDir, '.local/bin/claude')
+		];
+		
+		for (const claudePath of globalPaths) {
+			if (fs.existsSync(claudePath)) {
+				try {
+					const { stdout } = await exec(`"${claudePath}" --version`);
+					installations.push({
+						path: claudePath,
+						version: stdout.trim(),
+						source: claudePath.includes('.local') ? 'local' : 'global'
+					});
+				} catch {
+					installations.push({
+						path: claudePath,
+						version: 'unknown',
+						source: claudePath.includes('.local') ? 'local' : 'global'
+					});
+				}
+			}
+		}
+		
+	} catch (error) {
+		console.error('Error during Claude auto-discovery:', error);
+	}
+	
+	return installations;
+}
+
+// Get the Claude CLI path with smart resolution
+async function resolveClaudePath(): Promise<string> {
+	const config = vscode.workspace.getConfiguration('claudeCodeChat');
+	const manualPath = config.get<string>('claudePath', '');
+	const autoDiscovery = config.get<boolean>('autoDiscovery', true);
+	
+	// 1. If manual path is set and valid, use it
+	if (manualPath && fs.existsSync(manualPath)) {
+		console.log('Using manual Claude path:', manualPath);
+		return manualPath;
+	}
+	
+	// 2. If auto-discovery is enabled, discover and select best option
+	if (autoDiscovery) {
+		const installations = await discoverClaudeInstallations();
+		
+		if (installations.length === 0) {
+			console.warn('No Claude installations found via auto-discovery');
+			return 'claude'; // Fallback to generic command
+		}
+		
+		if (installations.length === 1) {
+			const selected = installations[0];
+			console.log('Auto-discovered single Claude installation:', selected.path);
+			return selected.path;
+		}
+		
+		// Multiple installations found - prefer NVM installations
+		const nvmInstalls = installations.filter(i => i.source === 'nvm');
+		if (nvmInstalls.length > 0) {
+			// Sort by node version (descending) and pick the latest
+			nvmInstalls.sort((a, b) => (b.nodeVersion || '').localeCompare(a.nodeVersion || ''));
+			const selected = nvmInstalls[0];
+			console.log('Auto-selected NVM Claude installation:', selected.path);
+			return selected.path;
+		}
+		
+		// No NVM, use first available
+		const selected = installations[0];
+		console.log('Auto-selected Claude installation:', selected.path);
+		return selected.path;
+	}
+	
+	// 3. Fallback to generic command
+	console.log('Using fallback generic Claude command');
+	return 'claude';
+}
 
 export function activate(context: vscode.ExtensionContext) {
 	console.log('Claude Code Chat extension is being activated!');
@@ -286,10 +412,10 @@ class ClaudeChatProvider {
 				this._setSelectedModel(message.model);
 				return;
 			case 'openModelTerminal':
-				this._openModelTerminal();
+				this._openModelTerminal().catch(console.error);
 				return;
 			case 'executeSlashCommand':
-				this._executeSlashCommand(message.command);
+				this._executeSlashCommand(message.command).catch(console.error);
 				return;
 			case 'dismissWSLAlert':
 				this._dismissWSLAlert();
@@ -530,9 +656,10 @@ class ClaudeChatProvider {
 				}
 			});
 		} else {
-			// Use native claude command
-			console.log('Using native Claude command');
-			claudeProcess = cp.spawn('/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude', args, {
+			// Use native claude command with dynamic path resolution
+			const claudeExecutable = await resolveClaudePath();
+			console.log('Using native Claude command:', claudeExecutable);
+			claudeProcess = cp.spawn(claudeExecutable, args, {
 				shell: process.platform === 'win32',
 				cwd: cwd,
 				stdio: ['pipe', 'pipe', 'pipe'],
@@ -798,7 +925,7 @@ class ClaudeChatProvider {
 				if (jsonData.subtype === 'success') {
 					// Check for login errors
 					if (jsonData.is_error && jsonData.result && jsonData.result.includes('Invalid API key')) {
-						this._handleLoginRequired();
+						this._handleLoginRequired().catch(console.error);
 						return;
 					}
 
@@ -923,7 +1050,7 @@ class ClaudeChatProvider {
 		});
 	}
 
-	private _handleLoginRequired() {
+	private async _handleLoginRequired() {
 
 		this._isProcessing = false;
 
@@ -950,7 +1077,8 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath}`;
 		} else {
-			command = '/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude';
+			const claudeExecutable = await resolveClaudePath();
+			command = claudeExecutable;
 		}
 		
 		const terminal = this._createTerminalWithNVM('Claude Login', command);
@@ -2264,7 +2392,7 @@ class ClaudeChatProvider {
 		return terminal;
 	}
 
-	private _openModelTerminal(): void {
+	private async _openModelTerminal(): Promise<void> {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
@@ -2284,7 +2412,8 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			command = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			command = `/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude ${args.join(' ')}`;
+			const claudeExecutable = await resolveClaudePath();
+			command = `${claudeExecutable} ${args.join(' ')}`;
 		}
 		
 		const terminal = this._createTerminalWithNVM('Claude Model Selection', command);
@@ -2303,7 +2432,7 @@ class ClaudeChatProvider {
 		});
 	}
 
-	private _executeSlashCommand(command: string): void {
+	private async _executeSlashCommand(command: string): Promise<void> {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
@@ -2323,7 +2452,8 @@ class ClaudeChatProvider {
 		if (wslEnabled) {
 			commandString = `wsl -d ${wslDistro} ${nodePath} --no-warnings --enable-source-maps ${claudePath} ${args.join(' ')}`;
 		} else {
-			commandString = `/home/gyasis/.nvm/versions/node/v22.9.0/bin/claude ${args.join(' ')}`;
+			const claudeExecutable = await resolveClaudePath();
+			commandString = `${claudeExecutable} ${args.join(' ')}`;
 		}
 		
 		const terminal = this._createTerminalWithNVM(`Claude /${command}`, commandString);

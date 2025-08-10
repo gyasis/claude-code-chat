@@ -297,6 +297,27 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					</div>
 				</div>
 
+				<h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 14px; font-weight: 600;">Claude CLI Configuration</h3>
+				<div>
+					<p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin: 0;">
+						Configure the path to your Claude CLI installation. Auto-discovery will find Claude in common locations.
+					</p>
+				</div>
+				<div class="settings-group">
+					<div class="tool-item">
+						<input type="checkbox" id="claude-auto-discovery" onchange="updateSettings()">
+						<label for="claude-auto-discovery">Enable Auto-Discovery of Claude CLI</label>
+					</div>
+					
+					<div style="margin-top: 12px;">
+						<label style="display: block; margin-bottom: 4px; font-size: 12px; color: var(--vscode-descriptionForeground);">Manual Claude CLI Path (Optional)</label>
+						<input type="text" id="claude-path" class="file-search-input" style="width: 100%;" placeholder="/path/to/claude or leave empty for auto-discovery" onchange="updateSettings()">
+						<p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin: 4px 0 0 0;">
+							Find your claude installation: <code style="background: var(--vscode-textCodeBlock-background); padding: 2px 4px; border-radius: 3px;">which claude</code> or check NVM: <code style="background: var(--vscode-textCodeBlock-background); padding: 2px 4px; border-radius: 3px;">ls ~/.nvm/versions/node/*/bin/claude</code>
+						</p>
+					</div>
+				</div>
+
 				<h3 style="margin-top: 24px; margin-bottom: 16px; font-size: 14px; font-weight: 600;">Permissions</h3>
 				<div>
 					<p style="font-size: 11px; color: var(--vscode-descriptionForeground); margin: 0;">
@@ -3415,6 +3436,10 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			const wslNodePath = document.getElementById('wsl-node-path').value;
 			const wslClaudePath = document.getElementById('wsl-claude-path').value;
 			const yoloMode = document.getElementById('yolo-mode').checked;
+			
+			// Claude CLI Configuration
+			const claudeAutoDiscovery = document.getElementById('claude-auto-discovery').checked;
+			const claudePath = document.getElementById('claude-path').value;
 
 			// Update WSL options visibility
 			document.getElementById('wslOptions').style.display = wslEnabled ? 'block' : 'none';
@@ -3427,7 +3452,9 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					'wsl.distro': wslDistro || 'Ubuntu',
 					'wsl.nodePath': wslNodePath || '/usr/bin/node',
 					'wsl.claudePath': wslClaudePath || '/usr/local/bin/claude',
-					'permissions.yoloMode': yoloMode
+					'permissions.yoloMode': yoloMode,
+					'autoDiscovery': claudeAutoDiscovery,
+					'claudePath': claudePath
 				}
 			});
 		}
