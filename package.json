@@ -2,7 +2,7 @@
   "name": "claude-code-chat-sam",
   "displayName": "Claude Code Chat SAM (Super Awesome Modification)",
   "description": "Beautiful Claude Code Chat Interface for VS Code with NVM Integration",
-  "version": "1.0.7",
+  "version": "1.1.0.a",
   "publisher": "gyasis",
   "author": "gyasis (fork of original by Andre Pimenta)",
   "repository": {

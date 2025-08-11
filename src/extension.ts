@@ -3,6 +3,7 @@ import * as cp from 'child_process';
 import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
+import { HybridCliManager, CommandInfo } from './hybridCliManager';
 import getHtml from './ui';
 import { MCPSyncManager } from './mcpSync';
 import { SecurityManager } from './securityManager';
@@ -295,6 +296,7 @@ class ClaudeChatProvider {
 	private _pendingPermissionResolvers: Map<string, (approved: boolean) => void> | undefined;
 	private _currentConversation: Array<{ timestamp: string, messageType: string, data: any }> = [];
 	private _conversationStartTime: string | undefined;
+	private _hybridCliManager: HybridCliManager;
 	private _conversationIndex: Array<{
 		filename: string,
 		sessionId: string,
@@ -316,7 +318,9 @@ class ClaudeChatProvider {
 		private readonly _extensionUri: vscode.Uri,
 		private readonly _context: vscode.ExtensionContext
 	) {
-
+		// Initialize hybrid CLI manager
+		this._hybridCliManager = HybridCliManager.getInstance(this._context);
+		
 		// Initialize backup repository and conversations
 		this._initializeBackupRepo();
 		this._initializeConversations();
@@ -2865,20 +2869,75 @@ class ClaudeChatProvider {
 	}
 
 	private async _executeSlashCommand(command: string): Promise<void> {
+		// Use hybrid CLI manager to determine routing
+		const routeResult = await this._hybridCliManager.routeCommand(command);
+		
+		// Log routing decision for debugging
+		console.log(`Hybrid routing for /${command}:`, routeResult);
+		
+		switch (routeResult.handler) {
+			case 'error':
+				// Command not available
+				vscode.window.showErrorMessage(routeResult.reason);
+				this._postMessage({
+					type: 'error',
+					data: routeResult.reason
+				});
+				
+				// Suggest checking CLI installation if needed
+				if (!await this._hybridCliManager.isCliAvailable()) {
+					const selection = await vscode.window.showErrorMessage(
+						'Claude CLI not detected. Please install or configure the CLI path.',
+						'Check Installation'
+					);
+					if (selection === 'Check Installation') {
+						await this._executeSlashCommandInTerminal('doctor');
+					}
+				}
+				return;
+				
+			case 'ui':
+				// Future: Handle UI-based commands here
+				// For now, fall through to terminal
+				console.log(`UI handler for /${command} not yet implemented, falling back to terminal`);
+				// Fall through to terminal case
+				
+			case 'terminal':
+				// Execute in terminal with session preservation
+				await this._executeSlashCommandInTerminal(command);
+				
+				// Update UI with command info
+				if (routeResult.commandInfo) {
+					this._postMessage({
+						type: 'commandInfo',
+						data: {
+							command: command,
+							description: routeResult.commandInfo.description,
+							category: routeResult.commandInfo.category,
+							icon: routeResult.commandInfo.icon
+						}
+					});
+				}
+				return;
+		}
+	}
+	
+	private async _executeSlashCommandInTerminal(command: string): Promise<void> {
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const wslEnabled = config.get<boolean>('wsl.enabled', false);
 		const wslDistro = config.get<string>('wsl.distro', 'Ubuntu');
 		const nodePath = config.get<string>('wsl.nodePath', '/usr/bin/node');
 		const claudePath = config.get<string>('wsl.claudePath', '/usr/local/bin/claude');
-
+		
 		// Build command arguments
 		const args = [`/${command}`];
-
-		// Add session resume if we have a current session
+		
+		// Add session resume if we have a current session - MAINTAINS SESSION!
 		if (this._currentSessionId) {
 			args.push('--resume', this._currentSessionId);
+			console.log(`Executing /${command} with session resume: ${this._currentSessionId}`);
 		}
-
+		
 		// Create terminal with the claude command
 		let commandString: string;
 		if (wslEnabled) {
@@ -2890,17 +2949,17 @@ class ClaudeChatProvider {
 		
 		const terminal = this._createTerminalWithNVM(`Claude /${command}`, commandString);
 		terminal.show();
-
+		
 		// Show info message
 		vscode.window.showInformationMessage(
-			`Executing /${command} command in terminal. Check the terminal output and return when ready.`,
+			`Executing /${command} command in terminal. Session will be maintained. Return here when ready.`,
 			'OK'
 		);
-
+		
 		// Send message to UI about terminal
 		this._postMessage({
 			type: 'terminalOpened',
-			data: `Executing /${command} command in terminal. Check the terminal output and return when ready.`,
+			data: `Executing /${command} command in terminal with session ${this._currentSessionId || 'new'}. Return here when ready.`,
 		});
 	}
 
