@@ -3025,6 +3025,27 @@ const styles = `
         border: 1px dashed var(--vscode-input-border);
     }
 
+    .sync-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--vscode-input-border);
+    }
+
+    .sync-controls {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+    }
+
+    .sync-all-control {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
     .toggle-switch {
         position: relative;
         display: inline-block;
@@ -3032,10 +3053,17 @@ const styles = `
         height: 24px;
     }
 
+    .toggle-label-text {
+        font-size: 13px;
+        color: var(--vscode-foreground);
+        white-space: nowrap;
+    }
+
     .toggle-switch input {
         opacity: 0;
         width: 0;
         height: 0;
+        position: absolute;
     }
 
     .toggle-slider {
@@ -3049,6 +3077,8 @@ const styles = `
         border: 1px solid var(--vscode-input-border);
         transition: 0.2s;
         border-radius: 24px;
+        width: 44px;
+        height: 24px;
     }
 
     .toggle-slider:before {
@@ -3072,6 +3102,91 @@ const styles = `
     input:checked + .toggle-slider:before {
         transform: translateX(20px);
         opacity: 1;
+    }
+
+    .cli-servers-list {
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 4px;
+        background-color: var(--vscode-input-background);
+        max-height: 300px;
+        overflow-y: auto;
+    }
+
+    .cli-server-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 16px;
+        border-bottom: 1px solid var(--vscode-input-border);
+    }
+
+    .cli-server-item:last-child {
+        border-bottom: none;
+    }
+
+    .cli-server-item:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+
+    .server-checkbox-label {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        cursor: pointer;
+        flex: 1;
+        margin: 0;
+    }
+
+    .cli-server-checkbox {
+        margin: 0 !important;
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+
+    .server-info {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    .server-name {
+        font-weight: 500;
+        color: var(--vscode-foreground);
+        font-size: 13px;
+    }
+
+    .server-source {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .server-command {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        font-family: var(--vscode-editor-font-family);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .server-status {
+        font-size: 16px;
+        flex-shrink: 0;
+        margin-left: 12px;
+    }
+
+    .server-status.active {
+        color: var(--vscode-testing-iconPassed);
+    }
+
+    .server-status.inactive {
+        color: var(--vscode-descriptionForeground);
+        opacity: 0.7;
     }
 </style>`
 

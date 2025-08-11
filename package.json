@@ -218,7 +218,7 @@
         },
         "claudeCodeChat.mcp.cliConfigPath": {
           "type": "string",
-          "default": "~/.claude/claude_config.json",
+          "default": "~/.claude/mcp.json",
           "description": "Path to Claude CLI configuration file"
         },
         "claudeCodeChat.mcp.autoRefresh": {

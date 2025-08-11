@@ -2376,7 +2376,24 @@ class ClaudeChatProvider {
 	}
 
 	private _getHtmlForWebview(): string {
-		return getHtml(vscode.env?.isTelemetryEnabled);
+		const html = getHtml(vscode.env?.isTelemetryEnabled);
+		
+		// Debug: Log the generated HTML to find syntax errors
+		logDebug('Generated HTML length: ' + html.length + ' characters');
+		
+		// Look for line 3032 area - split into lines and check around that area
+		const lines = html.split('\n');
+		logDebug('Total HTML lines: ' + lines.length);
+		
+		if (lines.length > 3030) {
+			logDebug('Line 3030: ' + JSON.stringify(lines[3029]));
+			logDebug('Line 3031: ' + JSON.stringify(lines[3030])); 
+			logDebug('Line 3032: ' + JSON.stringify(lines[3031]));
+			logDebug('Line 3033: ' + JSON.stringify(lines[3032]));
+			logDebug('Line 3034: ' + JSON.stringify(lines[3033]));
+		}
+		
+		return html;
 	}
 
 	private _sendCurrentSettings(): void {

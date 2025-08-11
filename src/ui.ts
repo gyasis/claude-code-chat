@@ -162,11 +162,13 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					<div class="sync-header">
 						<h3>🔄 Claude CLI Sync</h3>
 						<div class="sync-controls">
-							<label class="toggle-switch">
-								<input type="checkbox" id="syncAllToggle">
-								<span class="toggle-slider"></span>
-								<span class="toggle-label">Sync All</span>
-							</label>
+							<div class="sync-all-control">
+								<label class="toggle-switch">
+									<input type="checkbox" id="syncAllToggle">
+									<span class="toggle-slider"></span>
+								</label>
+								<span class="toggle-label-text">Sync All</span>
+							</div>
 							<button class="btn outlined small" id="refreshMCPServersBtn" title="Refresh CLI servers">
 								<span class="refresh-icon">↻</span> Refresh
 							</button>

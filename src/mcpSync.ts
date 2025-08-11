@@ -48,14 +48,28 @@ export class MCPSyncManager {
 	private async readCLIConfig(): Promise<ClaudeCLIConfig | null> {
 		try {
 			const homeDir = process.env.HOME || process.env.USERPROFILE || '';
-			const cliConfigPath = path.join(homeDir, '.claude', 'claude_config.json');
 			
-			logDebug(`Reading CLI config from: ${cliConfigPath}`);
+			// Check for mcp.json first (current format), then fall back to other names
+			const possiblePaths = [
+				path.join(homeDir, '.claude', 'mcp.json'),
+				path.join(homeDir, '.claude', 'mcp-servers.json'),
+				path.join(homeDir, '.claude', 'claude_config.json')
+			];
 			
-			if (!fs.existsSync(cliConfigPath)) {
-				logDebug('CLI config file not found');
+			let cliConfigPath = '';
+			for (const path of possiblePaths) {
+				if (fs.existsSync(path)) {
+					cliConfigPath = path;
+					break;
+				}
+			}
+			
+			if (!cliConfigPath) {
+				logDebug('No CLI config file found in: ' + possiblePaths.join(', '));
 				return null;
 			}
+			
+			logDebug(`Reading CLI config from: ${cliConfigPath}`);
 
 			const configContent = fs.readFileSync(cliConfigPath, 'utf8');
 			const config = JSON.parse(configContent) as ClaudeCLIConfig;
