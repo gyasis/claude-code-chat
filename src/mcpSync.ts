@@ -8,6 +8,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
 import { MCPServer, MCPSyncState, ClaudeCLIConfig, MCPSyncConfig, MCPServerStatus } from './types/mcp';
+import { logDebug, logError } from './extension';
 
 export class MCPSyncManager {
 	private context: vscode.ExtensionContext;
@@ -24,7 +25,7 @@ export class MCPSyncManager {
 	 * Initialize the MCP sync manager
 	 */
 	public async initialize(): Promise<void> {
-		console.log('Initializing MCP Sync Manager v1.0.7');
+		logDebug('Initializing MCP Sync Manager v1.0.7');
 		
 		// Load saved sync state
 		await this.loadSyncState();
@@ -38,11 +39,7 @@ export class MCPSyncManager {
 		// Set up auto-refresh if enabled
 		this.setupAutoRefresh();
 		
-		console.log('MCP Sync Manager initialized', {
-			cliServers: this.cliServers.length,
-			extensionServers: this.extensionServers.length,
-			syncAll: this.syncState?.syncAll || false
-		});
+		logDebug(`MCP Sync Manager initialized - CLI servers: ${this.cliServers.length}, Extension servers: ${this.extensionServers.length}, Sync All: ${this.syncState?.syncAll || false}`);
 	}
 
 	/**
@@ -53,23 +50,21 @@ export class MCPSyncManager {
 			const homeDir = process.env.HOME || process.env.USERPROFILE || '';
 			const cliConfigPath = path.join(homeDir, '.claude', 'claude_config.json');
 			
-			console.log('Reading CLI config from:', cliConfigPath);
+			logDebug(`Reading CLI config from: ${cliConfigPath}`);
 			
 			if (!fs.existsSync(cliConfigPath)) {
-				console.log('CLI config file not found');
+				logDebug('CLI config file not found');
 				return null;
 			}
 
 			const configContent = fs.readFileSync(cliConfigPath, 'utf8');
 			const config = JSON.parse(configContent) as ClaudeCLIConfig;
 			
-			console.log('CLI config loaded successfully', {
-				mcpServerCount: Object.keys(config.mcpServers || {}).length
-			});
+			logDebug(`CLI config loaded successfully - MCP servers: ${Object.keys(config.mcpServers || {}).length}`);
 			
 			return config;
 		} catch (error) {
-			console.error('Error reading CLI config:', error);
+			logError(error, 'Reading CLI config');
 			return null;
 		}
 	}
@@ -86,11 +81,11 @@ export class MCPSyncManager {
 	 * Refresh CLI servers from configuration
 	 */
 	public async refreshCLIServers(): Promise<void> {
-		console.log('Refreshing CLI servers...');
+		logDebug('Refreshing CLI servers...');
 		
 		const config = await this.readCLIConfig();
 		if (!config || !config.mcpServers) {
-			console.log('No CLI servers found');
+			logDebug('No CLI servers found in config');
 			this.cliServers = [];
 			return;
 		}
@@ -100,7 +95,7 @@ export class MCPSyncManager {
 		const hasChanged = this.syncState?.cliConfigHash !== newHash;
 		
 		if (hasChanged) {
-			console.log('CLI config has changed, refreshing servers');
+			logDebug('CLI config has changed, refreshing servers');
 		}
 
 		// Convert CLI config to MCPServer objects
@@ -122,7 +117,7 @@ export class MCPSyncManager {
 			await this.saveSyncState();
 		}
 
-		console.log('CLI servers refreshed:', this.cliServers.length);
+		logDebug(`CLI servers refreshed: ${this.cliServers.length} servers loaded`);
 	}
 
 	/**
@@ -144,7 +139,7 @@ export class MCPSyncManager {
 	 * Toggle a CLI server's active state
 	 */
 	public async toggleServer(serverName: string, isActive: boolean): Promise<void> {
-		console.log('Toggling server:', serverName, 'to', isActive);
+		logDebug(`Toggling server '${serverName}' to ${isActive ? 'active' : 'inactive'}`);
 		
 		if (!this.syncState) {
 			await this.initializeSyncState();
@@ -175,14 +170,14 @@ export class MCPSyncManager {
 		}
 
 		await this.saveSyncState();
-		console.log('Server toggle complete:', serverName, isActive);
+		logDebug(`Server '${serverName}' toggle complete - now ${isActive ? 'active' : 'inactive'}`);
 	}
 
 	/**
 	 * Set sync all mode
 	 */
 	public async setSyncAll(enabled: boolean): Promise<void> {
-		console.log('Setting sync all mode:', enabled);
+		logDebug(`Setting sync all mode: ${enabled ? 'enabled' : 'disabled'}`);
 		
 		if (!this.syncState) {
 			await this.initializeSyncState();
@@ -211,7 +206,7 @@ export class MCPSyncManager {
 		}
 
 		await this.saveSyncState();
-		console.log('Sync all mode set:', enabled);
+		logDebug(`Sync all mode ${enabled ? 'enabled' : 'disabled'} - ${this.cliServers.length} servers affected`);
 	}
 
 	/**
@@ -262,7 +257,7 @@ export class MCPSyncManager {
 		// This would integrate with existing extension MCP server logic
 		// For now, initialize as empty array
 		this.extensionServers = [];
-		console.log('Extension servers loaded:', this.extensionServers.length);
+		logDebug(`Extension servers loaded: ${this.extensionServers.length}`);
 	}
 
 	/**
@@ -274,16 +269,12 @@ export class MCPSyncManager {
 			
 			if (savedState && savedState.version) {
 				this.syncState = savedState;
-				console.log('Loaded sync state:', {
-					version: savedState.version,
-					syncAll: savedState.syncAll,
-					activeServers: savedState.activeCliServers.length
-				});
+				logDebug(`Loaded sync state - Version: ${savedState.version}, Sync All: ${savedState.syncAll}, Active servers: ${savedState.activeCliServers.length}`);
 			} else {
 				await this.initializeSyncState();
 			}
 		} catch (error) {
-			console.error('Error loading sync state:', error);
+			logError(error, 'Loading sync state');
 			await this.initializeSyncState();
 		}
 	}
@@ -302,7 +293,7 @@ export class MCPSyncManager {
 		};
 		
 		await this.saveSyncState();
-		console.log('Initialized default sync state');
+		logDebug('Initialized default sync state');
 	}
 
 	/**
@@ -315,9 +306,9 @@ export class MCPSyncManager {
 		
 		try {
 			await this.context.workspaceState.update('mcpSyncState', this.syncState);
-			console.log('Sync state saved');
+			logDebug('Sync state saved successfully');
 		} catch (error) {
-			console.error('Error saving sync state:', error);
+			logError(error, 'Saving sync state');
 		}
 	}
 
@@ -334,7 +325,7 @@ export class MCPSyncManager {
 				await this.refreshCLIServers();
 			}, intervalMs);
 			
-			console.log('Auto-refresh enabled, interval:', intervalMs + 'ms');
+			logDebug(`Auto-refresh enabled - interval: ${intervalMs}ms`);
 		}
 	}
 
@@ -368,6 +359,6 @@ export class MCPSyncManager {
 			clearInterval(this.refreshTimer);
 			this.refreshTimer = null;
 		}
-		console.log('MCP Sync Manager disposed');
+		logDebug('MCP Sync Manager disposed');
 	}
 }

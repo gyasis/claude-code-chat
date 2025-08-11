@@ -57,6 +57,11 @@
         "title": "Open Claude Code Chat",
         "category": "Claude Code Chat",
         "icon": "icon.png"
+      },
+      {
+        "command": "claude-code-chat.showDebugOutput",
+        "title": "Show Debug Output",
+        "category": "Claude Code Chat"
       }
     ],
     "keybindings": [

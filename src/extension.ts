@@ -8,6 +8,39 @@ import { MCPSyncManager } from './mcpSync';
 
 const exec = util.promisify(cp.exec);
 
+// Create output channel for debugging
+let outputChannel: vscode.OutputChannel;
+
+// Helper function for logging with timestamp
+export function logDebug(message: string, showChannel: boolean = false) {
+	const timestamp = new Date().toISOString();
+	const logMessage = `[${timestamp}] ${message}`;
+	
+	if (outputChannel) {
+		outputChannel.appendLine(logMessage);
+		if (showChannel) {
+			outputChannel.show(true); // Show without taking focus
+		}
+	}
+	console.log(logMessage);
+}
+
+// Helper function for logging errors
+export function logError(error: any, context: string = '') {
+	const timestamp = new Date().toISOString();
+	const errorMessage = error?.message || error?.toString() || 'Unknown error';
+	const logMessage = `[${timestamp}] ERROR${context ? ` in ${context}` : ''}: ${errorMessage}`;
+	
+	if (outputChannel) {
+		outputChannel.appendLine(logMessage);
+		if (error?.stack) {
+			outputChannel.appendLine(`Stack trace:\n${error.stack}`);
+		}
+		outputChannel.show(true); // Always show output channel for errors
+	}
+	console.error(logMessage, error);
+}
+
 interface ClaudeInstallation {
 	path: string;
 	version: string;
@@ -134,6 +167,13 @@ async function resolveClaudePath(): Promise<string> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	// Initialize output channel for debugging
+	outputChannel = vscode.window.createOutputChannel('Claude Code Chat Debug');
+	outputChannel.appendLine('Claude Code Chat extension is being activated!');
+	outputChannel.appendLine(`Extension Version: 1.0.7`);
+	outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
+	outputChannel.appendLine(`Platform: ${process.platform}`);
+	
 	console.log('Claude Code Chat extension is being activated!');
 	const provider = new ClaudeChatProvider(context.extensionUri, context);
 
@@ -165,11 +205,23 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.command = 'claude-code-chat.openChat';
 	statusBarItem.show();
 
-	context.subscriptions.push(disposable, loadConversationDisposable, configChangeDisposable, statusBarItem);
+	// Register command to show debug output
+	const showDebugOutput = vscode.commands.registerCommand('claude-code-chat.showDebugOutput', () => {
+		outputChannel.show();
+	});
+
+	context.subscriptions.push(disposable, loadConversationDisposable, configChangeDisposable, statusBarItem, showDebugOutput);
+	
+	logDebug('Claude Code Chat extension activation completed successfully!');
 	console.log('Claude Code Chat extension activation completed successfully!');
 }
 
-export function deactivate() { }
+export function deactivate() {
+	if (outputChannel) {
+		outputChannel.appendLine('Claude Code Chat extension is being deactivated');
+		outputChannel.dispose();
+	}
+}
 
 interface ConversationData {
 	sessionId: string;
@@ -671,18 +723,28 @@ class ClaudeChatProvider {
 			});
 		} else {
 			// Use native claude command with dynamic path resolution
-			const claudeExecutable = await resolveClaudePath();
-			console.log('Using native Claude command:', claudeExecutable);
-			claudeProcess = cp.spawn(claudeExecutable, args, {
-				shell: process.platform === 'win32',
-				cwd: cwd,
-				stdio: ['pipe', 'pipe', 'pipe'],
-				env: {
-					...process.env,
-					FORCE_COLOR: '0',
-					NO_COLOR: '1'
-				}
-			});
+			try {
+				const claudeExecutable = await resolveClaudePath();
+				logDebug(`Using native Claude command: ${claudeExecutable}`);
+				claudeProcess = cp.spawn(claudeExecutable, args, {
+					shell: process.platform === 'win32',
+					cwd: cwd,
+					stdio: ['pipe', 'pipe', 'pipe'],
+					env: {
+						...process.env,
+						FORCE_COLOR: '0',
+						NO_COLOR: '1'
+					}
+				});
+			} catch (error) {
+				logError(error, 'Claude executable resolution');
+				this._sendAndSaveMessage({
+					type: 'error',
+					data: `Failed to start Claude: ${error instanceof Error ? error.message : 'Unknown error'}`
+				});
+				this._isProcessing = false;
+				return;
+			}
 		}
 
 		// Store process reference for potential termination
@@ -759,7 +821,7 @@ class ClaudeChatProvider {
 		});
 
 		claudeProcess.on('error', (error) => {
-			console.log('Claude process error:', error.message);
+			logError(error, 'Claude process');
 
 			if (!this._currentClaudeProcess) {
 				return;
@@ -1328,11 +1390,12 @@ class ClaudeChatProvider {
 			// Initialize MCP Sync Manager (v1.0.7) - non-blocking
 			setTimeout(async () => {
 				try {
+					logDebug('Initializing MCP Sync Manager...');
 					this._mcpSyncManager = new MCPSyncManager(this._context);
 					await this._mcpSyncManager.initialize();
-					console.log('MCP Sync Manager initialized successfully');
+					logDebug('MCP Sync Manager initialized successfully');
 				} catch (error: any) {
-					console.error('Failed to initialize MCP Sync Manager:', error.message);
+					logError(error, 'MCP Sync Manager initialization');
 					// Don't let MCP sync failure block the extension
 				}
 			}, 1000); // Delay initialization to not block main extension startup
