@@ -4,8 +4,42 @@ import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import getHtml from './ui';
+import { MCPSyncManager } from './mcpSync';
 
 const exec = util.promisify(cp.exec);
+
+// Create output channel for debugging
+let outputChannel: vscode.OutputChannel;
+
+// Helper function for logging with timestamp
+export function logDebug(message: string, showChannel: boolean = false) {
+	const timestamp = new Date().toISOString();
+	const logMessage = `[${timestamp}] ${message}`;
+	
+	if (outputChannel) {
+		outputChannel.appendLine(logMessage);
+		if (showChannel) {
+			outputChannel.show(true); // Show without taking focus
+		}
+	}
+	console.log(logMessage);
+}
+
+// Helper function for logging errors
+export function logError(error: any, context: string = '') {
+	const timestamp = new Date().toISOString();
+	const errorMessage = error?.message || error?.toString() || 'Unknown error';
+	const logMessage = `[${timestamp}] ERROR${context ? ` in ${context}` : ''}: ${errorMessage}`;
+	
+	if (outputChannel) {
+		outputChannel.appendLine(logMessage);
+		if (error?.stack) {
+			outputChannel.appendLine(`Stack trace:\n${error.stack}`);
+		}
+		outputChannel.show(true); // Always show output channel for errors
+	}
+	console.error(logMessage, error);
+}
 
 interface ClaudeInstallation {
 	path: string;
@@ -133,6 +167,13 @@ async function resolveClaudePath(): Promise<string> {
 }
 
 export function activate(context: vscode.ExtensionContext) {
+	// Initialize output channel for debugging
+	outputChannel = vscode.window.createOutputChannel('Claude Code Chat Debug');
+	outputChannel.appendLine('Claude Code Chat extension is being activated!');
+	outputChannel.appendLine(`Extension Version: 1.0.7`);
+	outputChannel.appendLine(`VS Code Version: ${vscode.version}`);
+	outputChannel.appendLine(`Platform: ${process.platform}`);
+	
 	console.log('Claude Code Chat extension is being activated!');
 	const provider = new ClaudeChatProvider(context.extensionUri, context);
 
@@ -164,11 +205,23 @@ export function activate(context: vscode.ExtensionContext) {
 	statusBarItem.command = 'claude-code-chat.openChat';
 	statusBarItem.show();
 
-	context.subscriptions.push(disposable, loadConversationDisposable, configChangeDisposable, statusBarItem);
+	// Register command to show debug output
+	const showDebugOutput = vscode.commands.registerCommand('claude-code-chat.showDebugOutput', () => {
+		outputChannel.show();
+	});
+
+	context.subscriptions.push(disposable, loadConversationDisposable, configChangeDisposable, statusBarItem, showDebugOutput);
+	
+	logDebug('Claude Code Chat extension activation completed successfully!');
 	console.log('Claude Code Chat extension activation completed successfully!');
 }
 
-export function deactivate() { }
+export function deactivate() {
+	if (outputChannel) {
+		outputChannel.appendLine('Claude Code Chat extension is being deactivated');
+		outputChannel.dispose();
+	}
+}
 
 interface ConversationData {
 	sessionId: string;
@@ -251,6 +304,7 @@ class ClaudeChatProvider {
 		lastUserMessage: string
 	}> = [];
 	private _currentClaudeProcess: cp.ChildProcess | undefined;
+	private _mcpSyncManager: MCPSyncManager | undefined;
 	private _selectedModel: string = 'default'; // Default model
 	private _isProcessing: boolean | undefined;
 	private _draftMessage: string = '';
@@ -308,24 +362,19 @@ class ClaudeChatProvider {
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
 		this._setupWebviewMessageHandler(this._panel.webview);
-		this._initializePermissions();
-
-		// Resume session from latest conversation
-		const latestConversation = this._getLatestConversation();
-		this._currentSessionId = latestConversation?.sessionId;
-
-		// Load latest conversation history if available
-		if (latestConversation) {
-			this._loadConversationHistory(latestConversation.filename);
-		}
-
-		// Send ready message immediately
-		setTimeout(() => {
-			// If no conversation to load, send ready immediately
-			if (!latestConversation) {
-				this._sendReadyMessage();
-			}
-		}, 100);
+		
+		// Initialize permissions first, then resume session
+		logDebug('Starting permissions initialization...');
+		this._initializePermissions().then(() => {
+			logDebug('Permissions initialized successfully, starting webview...');
+			// Resume session from latest conversation
+			this._initializeWebview();
+		}).catch((error) => {
+			logError(error, 'Permissions initialization');
+			// Initialize webview anyway, even if permissions fail
+			logDebug('Permissions failed, starting webview anyway...');
+			this._initializeWebview();
+		});
 	}
 
 	private _postMessage(message: any) {
@@ -337,6 +386,7 @@ class ClaudeChatProvider {
 	}
 
 	private _sendReadyMessage() {
+		logDebug('Sending ready message to UI');
 		// Send current session info if available
 		/*if (this._currentSessionId) {
 			this._postMessage({
@@ -462,6 +512,18 @@ class ClaudeChatProvider {
 			case 'saveInputText':
 				this._saveInputText(message.text);
 				return;
+			case 'loadMCPSyncServers':
+				this._loadMCPSyncServers();
+				return;
+			case 'toggleMCPSyncServer':
+				this._toggleMCPSyncServer(message.serverName, message.isActive);
+				return;
+			case 'toggleMCPSyncAll':
+				this._toggleMCPSyncAll(message.enabled);
+				return;
+			case 'refreshMCPServers':
+				this._refreshMCPServers();
+				return;
 		}
 	}
 
@@ -499,22 +561,35 @@ class ClaudeChatProvider {
 		this._webview.html = this._getHtmlForWebview();
 
 		this._setupWebviewMessageHandler(this._webview);
-		this._initializePermissions();
-
-		// Initialize the webview
-		this._initializeWebview();
+		
+		// Initialize permissions and webview in sequence
+		logDebug('Starting sidebar permissions initialization...');
+		this._initializePermissions().then(() => {
+			logDebug('Sidebar permissions initialized successfully, starting webview...');
+			this._initializeWebview();
+		}).catch((error) => {
+			logError(error, 'Sidebar permissions initialization');
+			// Initialize webview anyway, even if permissions fail
+			logDebug('Sidebar permissions failed, starting webview anyway...');
+			this._initializeWebview();
+		});
 	}
 
 	private _initializeWebview() {
+		logDebug('Initializing webview...');
 		// Resume session from latest conversation
 		const latestConversation = this._getLatestConversation();
 		this._currentSessionId = latestConversation?.sessionId;
+		
+		logDebug(`Latest conversation: ${latestConversation ? latestConversation.filename : 'none'}`);
 
 		// Load latest conversation history if available
 		if (latestConversation) {
+			logDebug('Loading conversation history...');
 			this._loadConversationHistory(latestConversation.filename);
 		} else {
 			// If no conversation to load, send ready immediately
+			logDebug('No conversation to load, sending ready message');
 			setTimeout(() => {
 				this._sendReadyMessage();
 			}, 100);
@@ -524,8 +599,13 @@ class ClaudeChatProvider {
 	public reinitializeWebview() {
 		// Only reinitialize if we have a webview (sidebar)
 		if (this._webview) {
-			this._initializePermissions();
-			this._initializeWebview();
+			this._initializePermissions().then(() => {
+				this._initializeWebview();
+			}).catch((error) => {
+				logError(error, 'Permissions reinitialize');
+				// Initialize webview anyway, even if permissions fail
+				this._initializeWebview();
+			});
 			// Set up message handler for the webview
 			this._setupWebviewMessageHandler(this._webview);
 		}
@@ -657,18 +737,28 @@ class ClaudeChatProvider {
 			});
 		} else {
 			// Use native claude command with dynamic path resolution
-			const claudeExecutable = await resolveClaudePath();
-			console.log('Using native Claude command:', claudeExecutable);
-			claudeProcess = cp.spawn(claudeExecutable, args, {
-				shell: process.platform === 'win32',
-				cwd: cwd,
-				stdio: ['pipe', 'pipe', 'pipe'],
-				env: {
-					...process.env,
-					FORCE_COLOR: '0',
-					NO_COLOR: '1'
-				}
-			});
+			try {
+				const claudeExecutable = await resolveClaudePath();
+				logDebug(`Using native Claude command: ${claudeExecutable}`);
+				claudeProcess = cp.spawn(claudeExecutable, args, {
+					shell: process.platform === 'win32',
+					cwd: cwd,
+					stdio: ['pipe', 'pipe', 'pipe'],
+					env: {
+						...process.env,
+						FORCE_COLOR: '0',
+						NO_COLOR: '1'
+					}
+				});
+			} catch (error) {
+				logError(error, 'Claude executable resolution');
+				this._sendAndSaveMessage({
+					type: 'error',
+					data: `Failed to start Claude: ${error instanceof Error ? error.message : 'Unknown error'}`
+				});
+				this._isProcessing = false;
+				return;
+			}
 		}
 
 		// Store process reference for potential termination
@@ -745,7 +835,7 @@ class ClaudeChatProvider {
 		});
 
 		claudeProcess.on('error', (error) => {
-			console.log('Claude process error:', error.message);
+			logError(error, 'Claude process');
 
 			if (!this._currentClaudeProcess) {
 				return;
@@ -1310,6 +1400,19 @@ class ClaudeChatProvider {
 			await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
 
 			console.log(`Updated MCP config at: ${mcpConfigPath}`);
+
+			// Initialize MCP Sync Manager (v1.0.7) - non-blocking
+			setTimeout(async () => {
+				try {
+					logDebug('Initializing MCP Sync Manager...');
+					this._mcpSyncManager = new MCPSyncManager(this._context);
+					await this._mcpSyncManager.initialize();
+					logDebug('MCP Sync Manager initialized successfully');
+				} catch (error: any) {
+					logError(error, 'MCP Sync Manager initialization');
+					// Don't let MCP sync failure block the extension
+				}
+			}, 1000); // Delay initialization to not block main extension startup
 		} catch (error: any) {
 			console.error('Failed to initialize MCP config:', error.message);
 		}
@@ -1317,14 +1420,20 @@ class ClaudeChatProvider {
 
 	private async _initializePermissions(): Promise<void> {
 		try {
+			logDebug('_initializePermissions: Starting...');
 
 			if (this._permissionWatcher) {
+				logDebug('_initializePermissions: Disposing existing watcher');
 				this._permissionWatcher.dispose();
 				this._permissionWatcher = undefined;
 			}
 
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) { return; }
+			logDebug(`_initializePermissions: Storage path: ${storagePath}`);
+			if (!storagePath) { 
+				logDebug('_initializePermissions: No storage path, returning');
+				return; 
+			}
 
 			// Create permission requests directory
 			this._permissionRequestsPath = path.join(path.join(storagePath, 'permission-requests'));
@@ -1351,8 +1460,9 @@ class ClaudeChatProvider {
 
 			this._disposables.push(this._permissionWatcher);
 
+			logDebug('_initializePermissions: Completed successfully');
 		} catch (error: any) {
-			console.error('Failed to initialize permissions:', error.message);
+			logError(error, '_initializePermissions');
 		}
 	}
 
@@ -2266,7 +2376,24 @@ class ClaudeChatProvider {
 	}
 
 	private _getHtmlForWebview(): string {
-		return getHtml(vscode.env?.isTelemetryEnabled);
+		const html = getHtml(vscode.env?.isTelemetryEnabled);
+		
+		// Debug: Log the generated HTML to find syntax errors
+		logDebug('Generated HTML length: ' + html.length + ' characters');
+		
+		// Look for line 3032 area - split into lines and check around that area
+		const lines = html.split('\n');
+		logDebug('Total HTML lines: ' + lines.length);
+		
+		if (lines.length > 3030) {
+			logDebug('Line 3030: ' + JSON.stringify(lines[3029]));
+			logDebug('Line 3031: ' + JSON.stringify(lines[3030])); 
+			logDebug('Line 3032: ' + JSON.stringify(lines[3031]));
+			logDebug('Line 3033: ' + JSON.stringify(lines[3032]));
+			logDebug('Line 3034: ' + JSON.stringify(lines[3033]));
+		}
+		
+		return html;
 	}
 
 	private _sendCurrentSettings(): void {
@@ -2306,6 +2433,92 @@ class ClaudeChatProvider {
 
 	private _saveInputText(text: string): void {
 		this._draftMessage = text || '';
+	}
+
+	// MCP Sync Methods (v1.0.7)
+	private async _loadMCPSyncServers(): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized yet');
+				// Send empty response for now
+				this._sendAndSaveMessage({
+					type: 'mcpSyncServers',
+					data: {
+						servers: [],
+						config: {
+							enabled: false,
+							syncAll: false,
+							selectedServers: [],
+							cliConfigPath: '~/.claude/claude_config.json',
+							autoRefresh: false,
+							refreshIntervalMs: 30000
+						}
+					}
+				});
+				return;
+			}
+
+			const servers = this._mcpSyncManager.getAllServers();
+			const syncConfig = this._mcpSyncManager.getSyncConfig();
+
+			this._sendAndSaveMessage({
+				type: 'mcpSyncServers',
+				data: {
+					servers,
+					config: syncConfig
+				}
+			});
+		} catch (error) {
+			console.error('Failed to load MCP sync servers:', error);
+		}
+	}
+
+	private async _toggleMCPSyncServer(serverName: string, isActive: boolean): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.toggleServer(serverName, isActive);
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to toggle MCP server:', error);
+		}
+	}
+
+	private async _toggleMCPSyncAll(enabled: boolean): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.setSyncAll(enabled);
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to toggle MCP sync all:', error);
+		}
+	}
+
+	private async _refreshMCPServers(): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.refreshCLIServers();
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to refresh MCP servers:', error);
+		}
 	}
 
 	private async _updateSettings(settings: { [key: string]: any }): Promise<void> {

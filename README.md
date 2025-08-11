@@ -47,7 +47,11 @@ Ditch the command line and experience Claude Code like never before. This extens
 - Real-time cost and token tracking
 - Session statistics and performance metrics
 
-### 🔌 **MCP Server Management** ⭐ **NEW IN V1.0**
+### 🔌 **MCP Server Management** ⭐ **ENHANCED IN V1.0.7**
+- **CLI Config Synchronization** - Automatically sync and activate servers from your Claude CLI configuration
+- **Selective Server Activation** - Choose which CLI servers to activate with individual checkboxes
+- **Sync All Toggle** - Quickly activate/deactivate all available CLI servers
+- **State Persistence** - Remember server activation preferences across VS Code sessions
 - **Popular Servers Gallery** - One-click installation of common MCP servers
 - **Custom Server Creation** - Build and configure your own MCP servers
 - **Server Management** - Edit, delete, enable/disable servers through UI
@@ -131,8 +135,8 @@ Ditch the command line and experience Claude Code like never before. This extens
 ext install claude-code-chat
 ```
 
-#### Option 2: Install from This Fork (Includes NVM Integration)
-Since this is a fork with NVM integration, you'll need to build and install it manually:
+#### Option 2: Install from This Fork (Includes NVM Integration & MCP Sync)
+Since this is a fork with NVM integration and MCP sync features, you'll need to build and install it manually:
 
 1. **Clone and build the extension**:
    ```bash
@@ -142,11 +146,11 @@ Since this is a fork with NVM integration, you'll need to build and install it m
    npm run compile
    npx @vscode/vsce package
    ```
-   This will create `claude-code-chat-1.0.5.vsix` in the project directory.
+   This will create `claude-code-chat-sam-1.0.7.vsix` in the project directory.
 
 2. **Install the VSIX**:
    - **Method A**: In VS Code, go to Extensions → "..." → "Install from VSIX" → Select the `.vsix` file
-   - **Method B**: Command line: `code --install-extension claude-code-chat-1.0.5.vsix`
+   - **Method B**: Command line: `code --install-extension claude-code-chat-sam-1.0.7.vsix`
    - **Method C**: Drag and drop the `.vsix` file into VS Code
 
 3. **Configure NVM Integration** (Optional but Recommended):

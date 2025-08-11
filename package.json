@@ -2,7 +2,7 @@
   "name": "claude-code-chat-sam",
   "displayName": "Claude Code Chat SAM (Super Awesome Modification)",
   "description": "Beautiful Claude Code Chat Interface for VS Code with NVM Integration",
-  "version": "1.0.6-a",
+  "version": "1.0.7",
   "publisher": "gyasis",
   "author": "gyasis (fork of original by Andre Pimenta)",
   "repository": {
@@ -57,6 +57,11 @@
         "title": "Open Claude Code Chat",
         "category": "Claude Code Chat",
         "icon": "icon.png"
+      },
+      {
+        "command": "claude-code-chat.showDebugOutput",
+        "title": "Show Debug Output",
+        "category": "Claude Code Chat"
       }
     ],
     "keybindings": [
@@ -205,6 +210,26 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically discover Claude CLI installations"
+        },
+        "claudeCodeChat.mcp.syncEnabled": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable MCP server synchronization with Claude CLI"
+        },
+        "claudeCodeChat.mcp.cliConfigPath": {
+          "type": "string",
+          "default": "~/.claude/mcp.json",
+          "description": "Path to Claude CLI configuration file"
+        },
+        "claudeCodeChat.mcp.autoRefresh": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically refresh MCP servers from CLI config"
+        },
+        "claudeCodeChat.mcp.refreshIntervalMs": {
+          "type": "number",
+          "default": 30000,
+          "description": "Auto-refresh interval in milliseconds"
         }
       }
     }
