@@ -1325,14 +1325,17 @@ class ClaudeChatProvider {
 
 			console.log(`Updated MCP config at: ${mcpConfigPath}`);
 
-			// Initialize MCP Sync Manager (v1.0.7)
-			try {
-				this._mcpSyncManager = new MCPSyncManager(this._context);
-				await this._mcpSyncManager.initialize();
-				console.log('MCP Sync Manager initialized successfully');
-			} catch (error: any) {
-				console.error('Failed to initialize MCP Sync Manager:', error.message);
-			}
+			// Initialize MCP Sync Manager (v1.0.7) - non-blocking
+			setTimeout(async () => {
+				try {
+					this._mcpSyncManager = new MCPSyncManager(this._context);
+					await this._mcpSyncManager.initialize();
+					console.log('MCP Sync Manager initialized successfully');
+				} catch (error: any) {
+					console.error('Failed to initialize MCP Sync Manager:', error.message);
+					// Don't let MCP sync failure block the extension
+				}
+			}, 1000); // Delay initialization to not block main extension startup
 		} catch (error: any) {
 			console.error('Failed to initialize MCP config:', error.message);
 		}
@@ -2335,7 +2338,22 @@ class ClaudeChatProvider {
 	private async _loadMCPSyncServers(): Promise<void> {
 		try {
 			if (!this._mcpSyncManager) {
-				console.log('MCP Sync Manager not initialized');
+				console.log('MCP Sync Manager not initialized yet');
+				// Send empty response for now
+				this._sendAndSaveMessage({
+					type: 'mcpSyncServers',
+					data: {
+						servers: [],
+						config: {
+							enabled: false,
+							syncAll: false,
+							selectedServers: [],
+							cliConfigPath: '~/.claude/claude_config.json',
+							autoRefresh: false,
+							refreshIntervalMs: 30000
+						}
+					}
+				});
 				return;
 			}
 

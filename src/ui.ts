@@ -3743,14 +3743,19 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			
 			// Request refresh from extension
 			vscode.postMessage({
-				type: 'refreshCLIServers'
+				type: 'refreshMCPServers'
 			});
 		}
 
 		// Display CLI servers in the UI
 		function displayCLIServers(servers, config) {
-			console.log('Displaying CLI servers:', servers);
+			console.log('Displaying CLI servers:', servers, 'Config:', config);
 			const cliServersList = document.getElementById('cliServersList');
+			
+			if (!cliServersList) {
+				console.log('CLI servers list element not found');
+				return;
+			}
 			
 			if (!servers || servers.length === 0) {
 				cliServersList.innerHTML = '<div class="no-cli-servers">' +
