@@ -4,6 +4,7 @@ import * as util from 'util';
 import * as path from 'path';
 import * as fs from 'fs';
 import getHtml from './ui';
+import { MCPSyncManager } from './mcpSync';
 
 const exec = util.promisify(cp.exec);
 
@@ -251,6 +252,7 @@ class ClaudeChatProvider {
 		lastUserMessage: string
 	}> = [];
 	private _currentClaudeProcess: cp.ChildProcess | undefined;
+	private _mcpSyncManager: MCPSyncManager | undefined;
 	private _selectedModel: string = 'default'; // Default model
 	private _isProcessing: boolean | undefined;
 	private _draftMessage: string = '';
@@ -461,6 +463,18 @@ class ClaudeChatProvider {
 				return;
 			case 'saveInputText':
 				this._saveInputText(message.text);
+				return;
+			case 'loadMCPSyncServers':
+				this._loadMCPSyncServers();
+				return;
+			case 'toggleMCPSyncServer':
+				this._toggleMCPSyncServer(message.serverName, message.isActive);
+				return;
+			case 'toggleMCPSyncAll':
+				this._toggleMCPSyncAll(message.enabled);
+				return;
+			case 'refreshMCPServers':
+				this._refreshMCPServers();
 				return;
 		}
 	}
@@ -1310,6 +1324,15 @@ class ClaudeChatProvider {
 			await vscode.workspace.fs.writeFile(mcpConfigUri, configContent);
 
 			console.log(`Updated MCP config at: ${mcpConfigPath}`);
+
+			// Initialize MCP Sync Manager (v1.0.7)
+			try {
+				this._mcpSyncManager = new MCPSyncManager(this._context);
+				await this._mcpSyncManager.initialize();
+				console.log('MCP Sync Manager initialized successfully');
+			} catch (error: any) {
+				console.error('Failed to initialize MCP Sync Manager:', error.message);
+			}
 		} catch (error: any) {
 			console.error('Failed to initialize MCP config:', error.message);
 		}
@@ -2306,6 +2329,77 @@ class ClaudeChatProvider {
 
 	private _saveInputText(text: string): void {
 		this._draftMessage = text || '';
+	}
+
+	// MCP Sync Methods (v1.0.7)
+	private async _loadMCPSyncServers(): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			const servers = this._mcpSyncManager.getAllServers();
+			const syncConfig = this._mcpSyncManager.getSyncConfig();
+
+			this._sendAndSaveMessage({
+				type: 'mcpSyncServers',
+				data: {
+					servers,
+					config: syncConfig
+				}
+			});
+		} catch (error) {
+			console.error('Failed to load MCP sync servers:', error);
+		}
+	}
+
+	private async _toggleMCPSyncServer(serverName: string, isActive: boolean): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.toggleServer(serverName, isActive);
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to toggle MCP server:', error);
+		}
+	}
+
+	private async _toggleMCPSyncAll(enabled: boolean): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.setSyncAll(enabled);
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to toggle MCP sync all:', error);
+		}
+	}
+
+	private async _refreshMCPServers(): Promise<void> {
+		try {
+			if (!this._mcpSyncManager) {
+				console.log('MCP Sync Manager not initialized');
+				return;
+			}
+
+			await this._mcpSyncManager.refreshCLIServers();
+			
+			// Send updated server list back to UI
+			await this._loadMCPSyncServers();
+		} catch (error) {
+			console.error('Failed to refresh MCP servers:', error);
+		}
 	}
 
 	private async _updateSettings(settings: { [key: string]: any }): Promise<void> {

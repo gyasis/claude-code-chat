@@ -157,8 +157,41 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				<button class="tools-close-btn" onclick="hideMCPModal()">✕</button>
 			</div>
 			<div class="tools-list">
-				<div class="mcp-servers-list" id="mcpServersList">
-					<!-- MCP servers will be loaded here -->
+				<!-- Claude CLI Sync Section -->
+				<div class="mcp-sync-section" id="mcpSyncSection">
+					<div class="sync-header">
+						<h3>🔄 Claude CLI Sync</h3>
+						<div class="sync-controls">
+							<label class="toggle-switch">
+								<input type="checkbox" id="syncAllToggle" onchange="toggleSyncAll(this.checked)">
+								<span class="toggle-slider"></span>
+								<span class="toggle-label">Sync All</span>
+							</label>
+							<button class="btn outlined small" onclick="refreshCLIServers()" title="Refresh CLI servers">
+								<span class="refresh-icon">↻</span> Refresh
+							</button>
+						</div>
+					</div>
+					
+					<div class="cli-servers-list" id="cliServersList">
+						<div class="cli-servers-loading">
+							<span class="loading-spinner">⟳</span> Loading CLI servers...
+						</div>
+					</div>
+					
+					<div class="sync-status" id="syncStatus" style="display: none;">
+						<span class="sync-status-text">Last synced: <span id="lastSyncTime">Never</span></span>
+					</div>
+				</div>
+
+				<!-- Extension Servers Section -->
+				<div class="mcp-servers-section">
+					<div class="section-header">
+						<h3>Extension Servers</h3>
+					</div>
+					<div class="mcp-servers-list" id="mcpServersList">
+						<!-- Extension MCP servers will be loaded here -->
+					</div>
 				</div>
 				<div class="mcp-add-server">
 					<button class="btn outlined" onclick="showAddServerForm()" id="addServerBtn">+ Add MCP Server</button>
@@ -3418,6 +3451,10 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				vscode.postMessage({
 					type: 'getPermissions'
 				});
+				// Request MCP sync servers (v1.0.7)
+				vscode.postMessage({
+					type: 'loadMCPSyncServers'
+				});
 				settingsModal.style.display = 'flex';
 			} else {
 				hideSettingsModal();
@@ -3622,6 +3659,172 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			}
 		});
 
+		// ====== MCP SYNC FUNCTIONS (v1.0.7) ======
+
+		// MCP sync state management
+		let mcpSyncState = {
+			syncAll: false,
+			activeServers: [],
+			lastSync: null
+		};
+
+		// Toggle sync all functionality
+		function toggleSyncAll(enabled) {
+			console.log('Toggle sync all:', enabled);
+			mcpSyncState.syncAll = enabled;
+			
+			// Send message to extension
+			vscode.postMessage({
+				type: 'toggleSyncAll',
+				enabled: enabled
+			});
+			
+			// Update UI state
+			updateSyncAllUI(enabled);
+		}
+
+		// Update sync all UI elements
+		function updateSyncAllUI(enabled) {
+			const checkboxes = document.querySelectorAll('.cli-server-checkbox');
+			checkboxes.forEach(checkbox => {
+				if (enabled) {
+					checkbox.checked = true;
+					checkbox.disabled = true; // Gray out individual checkboxes
+				} else {
+					checkbox.disabled = false;
+					// Restore individual states from saved preferences
+					const serverName = checkbox.dataset.serverName;
+					checkbox.checked = mcpSyncState.activeServers.includes(serverName);
+				}
+			});
+		}
+
+		// Toggle individual CLI server
+		function toggleCLIServer(serverName, isActive) {
+			console.log('Toggle CLI server:', serverName, isActive);
+			
+			// Update local state
+			if (isActive && !mcpSyncState.activeServers.includes(serverName)) {
+				mcpSyncState.activeServers.push(serverName);
+			} else if (!isActive) {
+				mcpSyncState.activeServers = mcpSyncState.activeServers.filter(name => name !== serverName);
+			}
+			
+			// Send message to extension
+			vscode.postMessage({
+				type: 'toggleCLIServer',
+				serverName: serverName,
+				isActive: isActive
+			});
+			
+			// Update status indicator
+			updateServerStatusIndicator(serverName, isActive);
+		}
+
+		// Update server status indicator
+		function updateServerStatusIndicator(serverName, isActive) {
+			const serverItem = document.querySelector('[data-server-name="' + serverName + '"]');
+			if (serverItem) {
+				const statusIndicator = serverItem.querySelector('.server-status');
+				if (statusIndicator) {
+					statusIndicator.textContent = isActive ? '✅' : '⭕';
+					statusIndicator.className = 'server-status ' + (isActive ? 'active' : 'inactive');
+				}
+			}
+		}
+
+		// Refresh CLI servers from Claude CLI config
+		function refreshCLIServers() {
+			console.log('Refreshing CLI servers...');
+			
+			// Show loading state
+			const cliServersList = document.getElementById('cliServersList');
+			cliServersList.innerHTML = '<div class="cli-servers-loading"><span class="loading-spinner">⟳</span> Refreshing CLI servers...</div>';
+			
+			// Request refresh from extension
+			vscode.postMessage({
+				type: 'refreshCLIServers'
+			});
+		}
+
+		// Display CLI servers in the UI
+		function displayCLIServers(servers, config) {
+			console.log('Displaying CLI servers:', servers);
+			const cliServersList = document.getElementById('cliServersList');
+			
+			if (!servers || servers.length === 0) {
+				cliServersList.innerHTML = '<div class="no-cli-servers">' +
+					'<p>No CLI servers found.</p>' +
+					'<p class="help-text">Make sure Claude CLI is installed and configured with MCP servers.</p>' +
+					'<button class="btn outlined small" onclick="refreshCLIServers()">Try Again</button>' +
+					'</div>';
+				return;
+			}
+			
+			let html = '';
+			servers.forEach(server => {
+				const isActive = server.isActive || false;
+				const hasConflict = server.hasConflict || false;
+				const statusClass = isActive ? 'active' : 'inactive';
+				const statusIcon = isActive ? '✅' : '⭕';
+				const conflictIcon = hasConflict ? ' ⚠️' : '';
+				
+				html += '<div class="cli-server-item" data-server-name="' + server.name + '">' +
+					'<label class="server-checkbox-label">' +
+					'<input type="checkbox" class="cli-server-checkbox server-checkbox" ' +
+					'data-server-name="' + server.name + '" ' +
+					(isActive ? 'checked ' : '') +
+					'onchange="toggleCLIServer(\'' + server.name + '\', this.checked)">' +
+					'<span class="server-info">' +
+					'<span class="server-name">' + server.name + conflictIcon + '</span>' +
+					'<span class="server-source">[CLI]</span>' +
+					'<span class="server-command">' + (server.command || 'Unknown command') + '</span>' +
+					'</span>' +
+					'</label>' +
+					'<span class="server-status ' + statusClass + '">' + statusIcon + '</span>' +
+					'</div>';
+			});
+			
+			cliServersList.innerHTML = html;
+			
+			// Update sync status
+			updateSyncStatus();
+		}
+
+		// Update sync status display
+		function updateSyncStatus() {
+			const syncStatus = document.getElementById('syncStatus');
+			const lastSyncTime = document.getElementById('lastSyncTime');
+			
+			if (syncStatus && lastSyncTime) {
+				lastSyncTime.textContent = 'Just now';
+				syncStatus.style.display = 'block';
+			}
+		}
+
+		// Show MCP modal and load servers
+		function showMCPModal() {
+			document.getElementById('mcpModal').style.display = 'flex';
+			
+			// Load CLI servers
+			refreshCLIServers();
+			
+			// Load extension servers (existing functionality)
+			if (typeof loadMCPServers === 'function') {
+				loadMCPServers();
+			}
+		}
+
+		// Initialize MCP sync when modal opens
+		function initializeMCPSync() {
+			// Request current sync state from extension
+			vscode.postMessage({
+				type: 'getMCPSyncState'
+			});
+		}
+
+		// ====== END MCP SYNC FUNCTIONS ======
+
 		// Add settings message handler to window message event
 		const originalMessageHandler = window.onmessage;
 		window.addEventListener('message', event => {
@@ -3684,6 +3887,12 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			if (message.type === 'permissionsData') {
 				// Update permissions UI
 				renderPermissions(message.data);
+			}
+
+			// MCP Sync Message Handler (v1.0.7)
+			if (message.type === 'mcpSyncServers') {
+				// Update MCP sync servers UI
+				displayCLIServers(message.data.servers, message.data.config);
 			}
 		});
 

@@ -2874,6 +2874,205 @@ const styles = `
         overflow: hidden;
         text-overflow: ellipsis;
     }
+
+    /* MCP Sync Styles (v1.0.7) */
+    .mcp-sync-section {
+        background-color: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 6px;
+        padding: 16px;
+        margin-bottom: 16px;
+    }
+
+    .mcp-sync-section h4 {
+        margin: 0 0 12px 0;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--vscode-foreground);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .mcp-sync-section h4::before {
+        content: "🔗";
+        font-size: 16px;
+    }
+
+    .mcp-sync-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--vscode-panel-border);
+    }
+
+    .mcp-sync-toggle-label {
+        font-size: 13px;
+        color: var(--vscode-foreground);
+        font-weight: 500;
+    }
+
+    .mcp-servers-list {
+        max-height: 300px;
+        overflow-y: auto;
+        margin-top: 8px;
+    }
+
+    .mcp-server-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        background-color: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
+        border-radius: 4px;
+        transition: background-color 0.2s ease;
+    }
+
+    .mcp-server-item:hover {
+        background-color: var(--vscode-list-hoverBackground);
+    }
+
+    .mcp-server-item.active {
+        border-color: var(--vscode-focusBorder);
+        background-color: var(--vscode-list-activeSelectionBackground);
+    }
+
+    .mcp-server-info {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        margin-right: 12px;
+    }
+
+    .mcp-server-name {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--vscode-foreground);
+        margin-bottom: 2px;
+    }
+
+    .mcp-server-source {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        opacity: 0.8;
+    }
+
+    .mcp-server-source.cli {
+        color: var(--vscode-terminal-ansiGreen);
+    }
+
+    .mcp-server-source.extension {
+        color: var(--vscode-terminal-ansiBlue);
+    }
+
+    .mcp-server-checkbox {
+        margin: 0;
+        cursor: pointer;
+    }
+
+    .mcp-server-checkbox:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+    }
+
+    .mcp-sync-actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+    }
+
+    .mcp-refresh-btn {
+        background-color: var(--vscode-button-secondaryBackground);
+        color: var(--vscode-button-secondaryForeground);
+        border: 1px solid var(--vscode-button-border);
+        border-radius: 4px;
+        padding: 6px 12px;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .mcp-refresh-btn:hover {
+        background-color: var(--vscode-button-secondaryHoverBackground);
+    }
+
+    .mcp-refresh-btn::before {
+        content: "🔄";
+        font-size: 12px;
+    }
+
+    .mcp-sync-status {
+        font-size: 11px;
+        color: var(--vscode-descriptionForeground);
+        margin-left: auto;
+    }
+
+    .mcp-no-servers {
+        text-align: center;
+        padding: 24px 16px;
+        color: var(--vscode-descriptionForeground);
+        font-size: 13px;
+        background-color: var(--vscode-input-background);
+        border-radius: 4px;
+        border: 1px dashed var(--vscode-input-border);
+    }
+
+    .toggle-switch {
+        position: relative;
+        display: inline-block;
+        width: 44px;
+        height: 24px;
+    }
+
+    .toggle-switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .toggle-slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: var(--vscode-input-background);
+        border: 1px solid var(--vscode-input-border);
+        transition: 0.2s;
+        border-radius: 24px;
+    }
+
+    .toggle-slider:before {
+        position: absolute;
+        content: "";
+        height: 18px;
+        width: 18px;
+        left: 2px;
+        bottom: 2px;
+        background-color: var(--vscode-foreground);
+        transition: 0.2s;
+        border-radius: 50%;
+        opacity: 0.8;
+    }
+
+    input:checked + .toggle-slider {
+        background-color: var(--vscode-focusBorder);
+        border-color: var(--vscode-focusBorder);
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(20px);
+        opacity: 1;
+    }
 </style>`
 
 export default styles
