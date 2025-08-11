@@ -362,24 +362,16 @@ class ClaudeChatProvider {
 		this._panel.onDidDispose(() => this.dispose(), null, this._disposables);
 
 		this._setupWebviewMessageHandler(this._panel.webview);
-		this._initializePermissions();
-
-		// Resume session from latest conversation
-		const latestConversation = this._getLatestConversation();
-		this._currentSessionId = latestConversation?.sessionId;
-
-		// Load latest conversation history if available
-		if (latestConversation) {
-			this._loadConversationHistory(latestConversation.filename);
-		}
-
-		// Send ready message immediately
-		setTimeout(() => {
-			// If no conversation to load, send ready immediately
-			if (!latestConversation) {
-				this._sendReadyMessage();
-			}
-		}, 100);
+		
+		// Initialize permissions first, then resume session
+		this._initializePermissions().then(() => {
+			// Resume session from latest conversation
+			this._initializeWebview();
+		}).catch((error) => {
+			logError(error, 'Permissions initialization');
+			// Initialize webview anyway, even if permissions fail
+			this._initializeWebview();
+		});
 	}
 
 	private _postMessage(message: any) {
@@ -565,10 +557,15 @@ class ClaudeChatProvider {
 		this._webview.html = this._getHtmlForWebview();
 
 		this._setupWebviewMessageHandler(this._webview);
-		this._initializePermissions();
-
-		// Initialize the webview
-		this._initializeWebview();
+		
+		// Initialize permissions and webview in sequence
+		this._initializePermissions().then(() => {
+			this._initializeWebview();
+		}).catch((error) => {
+			logError(error, 'Permissions initialization');
+			// Initialize webview anyway, even if permissions fail
+			this._initializeWebview();
+		});
 	}
 
 	private _initializeWebview() {
@@ -590,8 +587,13 @@ class ClaudeChatProvider {
 	public reinitializeWebview() {
 		// Only reinitialize if we have a webview (sidebar)
 		if (this._webview) {
-			this._initializePermissions();
-			this._initializeWebview();
+			this._initializePermissions().then(() => {
+				this._initializeWebview();
+			}).catch((error) => {
+				logError(error, 'Permissions reinitialize');
+				// Initialize webview anyway, even if permissions fail
+				this._initializeWebview();
+			});
 			// Set up message handler for the webview
 			this._setupWebviewMessageHandler(this._webview);
 		}
