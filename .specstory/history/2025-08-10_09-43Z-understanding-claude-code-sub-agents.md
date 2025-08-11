@@ -2450,3 +2450,51 @@ Save this as `gitagent.md` in your `~/.claude/agents/` directory and Claude Code
 
 ---
 
+_**User**_
+
+just reminid me again doe we have ot explaicilty call an agent or does it work for us?
+
+---
+
+_**Assistant**_
+
+Great question! Claude Code Sub Agents work in **two ways**:
+
+## 1. **Automatic Invocation** (Default)
+Claude Code **automatically calls** the appropriate agent based on:
+- **Your request description** (e.g., "track by git", "version management")
+- **The agent's description field** in the YAML frontmatter
+- **Current context** and available tools
+
+So when you say something like:
+- "I want to track these changes by git"
+- "Let's manage versioning for this project"
+- "I need to commit these changes"
+
+Claude will **automatically** invoke the `git-version-manager` agent because your request matches its description.
+
+## 2. **Explicit Invocation** (Manual)
+You can also call agents directly by name:
+- "Use the git-version-manager to handle this"
+- "Let the git agent review these changes"
+- "Call the git agent for version management"
+
+## In Your Case:
+Since your `gitagent.md` has this description:
+```yaml
+description: Use this agent when the user mentions tracking by git, version management, or needs incremental commits with clear rollback paths.
+```
+
+It will **automatically activate** whenever you mention:
+- "track by git"
+- "version management" 
+- "incremental commits"
+- "rollback paths"
+
+## Pro Tip:
+The agent will work **automatically** most of the time, but you can always explicitly call it if you want to be sure it's being used for a specific task.
+
+So you don't need to remember to call it - just mention Git-related tasks and it should activate automatically!
+
+---
+
