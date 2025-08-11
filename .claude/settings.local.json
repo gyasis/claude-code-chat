@@ -8,7 +8,8 @@
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
       "Bash(mkdir:*)",
-      "Bash(npx @vscode/vsce package:*)"
+      "Bash(npx @vscode/vsce package:*)",
+      "mcp__gemini_mcp_server__gemini_brainstorm"
     ],
     "deny": []
   },

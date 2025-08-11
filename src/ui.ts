@@ -130,6 +130,12 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			</svg>
 			Stop
 		</button>
+		<button class="btn reset" id="resetBtn" onclick="resetProcessing()" style="display: none;" title="Reset if stuck processing">
+			<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+				<path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+			</svg>
+			Reset
+		</button>
 	</div>
 
 			<div id="yoloWarning" class="yolo-warning" style="display: none;">
@@ -1523,6 +1529,8 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		let isProcessing = false;
 		let requestStartTime = null;
 		let requestTimer = null;
+		let processingTimeout = null;
+		const PROCESSING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes timeout
 
 		// Send usage statistics
 		function sendStats(eventName) {
@@ -1586,7 +1594,55 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				clearInterval(requestTimer);
 				requestTimer = null;
 			}
+			if (processingTimeout) {
+				clearTimeout(processingTimeout);
+				processingTimeout = null;
+			}
 			requestStartTime = null;
+		}
+
+		function forceResetProcessing() {
+			console.log('UI: Force resetting processing state due to timeout or manual reset');
+			isProcessing = false;
+			stopRequestTimer();
+			hideStopButton();
+			hideResetButton();
+			enableButtons();
+			updateStatus('Ready - Processing timeout or manual reset', 'ready');
+			addMessage('⚠️ Processing was reset due to timeout or manual intervention. You can try your request again.', 'system');
+		}
+
+		function startProcessingTimeout() {
+			if (processingTimeout) {
+				clearTimeout(processingTimeout);
+			}
+			
+			// Show reset button after 2 minutes of processing
+			setTimeout(() => {
+				if (isProcessing) {
+					console.log('UI: Long processing detected, showing reset button');
+					showResetButton();
+				}
+			}, 2 * 60 * 1000); // 2 minutes
+			
+			// Force reset after 5 minutes
+			processingTimeout = setTimeout(() => {
+				console.log('UI: Processing timeout reached, forcing reset');
+				forceResetProcessing();
+				// Send reset message to extension
+				vscode.postMessage({
+					type: 'resetProcessing'
+				});
+			}, PROCESSING_TIMEOUT_MS);
+		}
+
+		function resetProcessing() {
+			console.log('UI: Manual reset triggered by user');
+			forceResetProcessing();
+			// Send reset message to extension
+			vscode.postMessage({
+				type: 'resetProcessing'
+			});
 		}
 
 		// Auto-resize textarea
@@ -2498,13 +2554,21 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			}
 		});
 
-		// Stop button functions
+		// Stop and Reset button functions
 		function showStopButton() {
 			document.getElementById('stopBtn').style.display = 'flex';
 		}
 
 		function hideStopButton() {
 			document.getElementById('stopBtn').style.display = 'none';
+		}
+
+		function showResetButton() {
+			document.getElementById('resetBtn').style.display = 'flex';
+		}
+
+		function hideResetButton() {
+			document.getElementById('resetBtn').style.display = 'none';
 		}
 
 		function stopRequest() {
@@ -2647,11 +2711,13 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					isProcessing = message.data.isProcessing;
 					if (isProcessing) {
 						startRequestTimer(message.data.requestStartTime);
+						startProcessingTimeout();
 						showStopButton();
 						disableButtons();
 					} else {
 						stopRequestTimer();
 						hideStopButton();
+						hideResetButton();
 						enableButtons();
 					}
 					updateStatusWithTotals();

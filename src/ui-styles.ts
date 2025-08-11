@@ -83,6 +83,25 @@ const styles = `
         opacity: 1;
     }
 
+    .btn.reset {
+        background-color: transparent;
+        color: var(--vscode-descriptionForeground);
+        border: 1px solid rgba(255, 165, 0, 0.1);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 12px;
+        font-weight: 400;
+        opacity: 0.7;
+        margin-left: 8px;
+    }
+
+    .btn.reset:hover {
+        background-color: rgba(255, 165, 0, 0.1);
+        color: #ffa500;
+        border-color: rgba(255, 165, 0, 0.3);
+        opacity: 1;
+    }
+
     /* Permission Request */
     .permission-request {
         margin: 4px 12px 20px 12px;

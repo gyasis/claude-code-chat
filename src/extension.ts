@@ -5,6 +5,8 @@ import * as path from 'path';
 import * as fs from 'fs';
 import getHtml from './ui';
 import { MCPSyncManager } from './mcpSync';
+import { SecurityManager } from './securityManager';
+import { SecuritySettings, PermissionRequest, SecurityError, SecurityErrorCodes } from './types/security';
 
 const exec = util.promisify(cp.exec);
 
@@ -305,6 +307,7 @@ class ClaudeChatProvider {
 	}> = [];
 	private _currentClaudeProcess: cp.ChildProcess | undefined;
 	private _mcpSyncManager: MCPSyncManager | undefined;
+	private _securityManager: SecurityManager | undefined;
 	private _selectedModel: string = 'default'; // Default model
 	private _isProcessing: boolean | undefined;
 	private _draftMessage: string = '';
@@ -318,6 +321,7 @@ class ClaudeChatProvider {
 		this._initializeBackupRepo();
 		this._initializeConversations();
 		this._initializeMCPConfig();
+		this._initializeSecurityManager();
 
 		// Load conversation index from workspace state
 		this._conversationIndex = this._context.workspaceState.get('claude.conversationIndex', []);
@@ -524,6 +528,21 @@ class ClaudeChatProvider {
 			case 'refreshMCPServers':
 				this._refreshMCPServers();
 				return;
+			case 'resetProcessing':
+				this._resetProcessing();
+				return;
+			case 'getSecuritySettings':
+				this._sendSecuritySettings();
+				return;
+			case 'updateSecuritySettings':
+				this._updateSecuritySettings(message.settings);
+				return;
+			case 'clearPermissions':
+				this._clearPermissions(message.scope);
+				return;
+			case 'getActivePermissions':
+				this._sendActivePermissions();
+				return;
 		}
 	}
 
@@ -686,18 +705,37 @@ class ClaudeChatProvider {
 		// Get configuration
 		const config = vscode.workspace.getConfiguration('claudeCodeChat');
 		const yoloMode = config.get<boolean>('permissions.yoloMode', false);
+		const securityConfig = vscode.workspace.getConfiguration('claudeCodeChat.security');
+		const permissionLevel = securityConfig.get<string>('permissionLevel', 'workspace-only');
 
-		if (yoloMode) {
-			// Yolo mode: skip all permissions regardless of MCP config
+		// Determine security mode - yolo mode takes precedence
+		if (yoloMode || permissionLevel === 'danger-mode') {
+			// Danger mode: skip all permissions
 			args.push('--dangerously-skip-permissions');
-		} else {
-			// Add MCP configuration for permissions
+			if (yoloMode) {
+				logDebug('Using --dangerously-skip-permissions due to yolo mode');
+			} else {
+				logDebug('Using --dangerously-skip-permissions due to danger-mode security level');
+			}
+		} else if (permissionLevel === 'workspace-only') {
+			// Workspace-only: use standard MCP config with our permission system
 			const mcpConfigPath = this.getMCPConfigPath();
 			if (mcpConfigPath) {
 				args.push('--mcp-config', this.convertToWSLPath(mcpConfigPath));
 				args.push('--allowedTools', 'mcp__claude-code-chat-permissions__approval_prompt');
 				args.push('--permission-prompt-tool', 'mcp__claude-code-chat-permissions__approval_prompt');
 			}
+		} else {
+			// Contextual, session-override, or workspace-override: use enhanced permission system
+			// TODO: Implement more granular permission control
+			// For now, fall back to standard MCP config but allow our security manager to handle requests
+			const mcpConfigPath = this.getMCPConfigPath();
+			if (mcpConfigPath) {
+				args.push('--mcp-config', this.convertToWSLPath(mcpConfigPath));
+				args.push('--allowedTools', 'mcp__claude-code-chat-permissions__approval_prompt');
+				args.push('--permission-prompt-tool', 'mcp__claude-code-chat-permissions__approval_prompt');
+			}
+			logDebug(`Using enhanced security mode: ${permissionLevel}`);
 		}
 
 		// Add model selection if not using default
@@ -2246,6 +2284,187 @@ class ClaudeChatProvider {
 			console.log('Claude process termination initiated');
 		} else {
 			console.log('No Claude process running to stop');
+		}
+	}
+
+	private _resetProcessing(): void {
+		logDebug('Reset processing request received');
+
+		// Force reset processing state
+		this._isProcessing = false;
+
+		// Update UI state
+		this._postMessage({
+			type: 'setProcessing',
+			data: { isProcessing: false }
+		});
+
+		// Stop any existing Claude process
+		if (this._currentClaudeProcess) {
+			logDebug('Terminating Claude process during reset...');
+			this._currentClaudeProcess.kill('SIGKILL');
+			this._currentClaudeProcess = undefined;
+		}
+
+		// Clear any loading states
+		this._postMessage({
+			type: 'clearLoading'
+		});
+
+		logDebug('Processing state reset complete');
+	}
+
+	private _initializeSecurityManager(): void {
+		try {
+			const workspaceRoot = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd();
+			const config = vscode.workspace.getConfiguration('claudeCodeChat.security');
+			
+			const settings: SecuritySettings = {
+				permissionLevel: config.get('permissionLevel', 'workspace-only'),
+				allowedPaths: config.get('allowedPaths', []),
+				deniedPaths: config.get('deniedPaths', []),
+				auditLog: config.get('auditLog', true),
+				sessionTimeout: config.get('sessionTimeout', 3600000),
+				showFilePreview: config.get('showFilePreview', true),
+				maxPreviewSize: config.get('maxPreviewSize', 10240),
+				autoGrantSafePaths: config.get('autoGrantSafePaths', true)
+			};
+
+			this._securityManager = new SecurityManager({
+				workspaceRoot,
+				extensionContext: this._context,
+				settings
+			});
+
+			logDebug(`Security Manager initialized with level: ${settings.permissionLevel}`);
+		} catch (error) {
+			logError(error, 'Security Manager initialization');
+		}
+	}
+
+	private async _checkFilePermission(filePath: string, operation: 'read' | 'write' | 'execute', reason: string): Promise<boolean> {
+		if (!this._securityManager) {
+			logError(new Error('Security Manager not initialized'), 'File permission check');
+			return false;
+		}
+
+		try {
+			const request: PermissionRequest = {
+				filePath,
+				permissionType: operation,
+				reason,
+				requestedBy: 'Claude Code Chat',
+				context: `Tool execution: ${operation} operation on ${filePath}`
+			};
+
+			return await this._securityManager.requestPermission(request);
+		} catch (error) {
+			if (error instanceof SecurityError) {
+				// Show security error to user
+				vscode.window.showErrorMessage(
+					`🔒 Security: ${error.message}`,
+					'View Security Settings'
+				).then(response => {
+					if (response === 'View Security Settings') {
+						vscode.commands.executeCommand('workbench.action.openSettings', 'claudeCodeChat.security');
+					}
+				});
+				
+				logError(error, 'Security permission denied');
+				return false;
+			}
+			
+			logError(error, 'File permission check failed');
+			return false;
+		}
+	}
+
+	private _sendSecuritySettings(): void {
+		if (!this._securityManager) {
+			logError(new Error('Security Manager not initialized'), 'Send security settings');
+			return;
+		}
+
+		const config = vscode.workspace.getConfiguration('claudeCodeChat.security');
+		const settings = {
+			permissionLevel: config.get('permissionLevel', 'workspace-only'),
+			allowedPaths: config.get('allowedPaths', []),
+			deniedPaths: config.get('deniedPaths', []),
+			auditLog: config.get('auditLog', true),
+			sessionTimeout: config.get('sessionTimeout', 3600000),
+			showFilePreview: config.get('showFilePreview', true),
+			maxPreviewSize: config.get('maxPreviewSize', 10240),
+			autoGrantSafePaths: config.get('autoGrantSafePaths', true)
+		};
+
+		this._postMessage({
+			type: 'securitySettings',
+			data: settings
+		});
+	}
+
+	private async _updateSecuritySettings(newSettings: Partial<SecuritySettings>): Promise<void> {
+		if (!this._securityManager) {
+			logError(new Error('Security Manager not initialized'), 'Update security settings');
+			return;
+		}
+
+		try {
+			const config = vscode.workspace.getConfiguration('claudeCodeChat.security');
+			
+			// Update VS Code settings
+			for (const [key, value] of Object.entries(newSettings)) {
+				await config.update(key, value, vscode.ConfigurationTarget.Workspace);
+			}
+
+			// Update SecurityManager
+			this._securityManager.updateSettings(newSettings);
+
+			logDebug(`Security settings updated: ${JSON.stringify(newSettings)}`);
+			
+			// Send updated settings back to UI
+			this._sendSecuritySettings();
+		} catch (error) {
+			logError(error, 'Update security settings');
+		}
+	}
+
+	private _clearPermissions(scope: string): void {
+		if (!this._securityManager) {
+			logError(new Error('Security Manager not initialized'), 'Clear permissions');
+			return;
+		}
+
+		try {
+			if (scope === 'session') {
+				this._securityManager.clearSessionPermissions();
+			} else if (scope === 'all') {
+				this._securityManager.clearAllPermissions();
+			}
+
+			logDebug(`Cleared permissions: ${scope}`);
+			
+			// Send updated permissions to UI
+			this._sendActivePermissions();
+		} catch (error) {
+			logError(error, 'Clear permissions');
+		}
+	}
+
+	private _sendActivePermissions(): void {
+		if (!this._securityManager) {
+			logError(new Error('Security Manager not initialized'), 'Send active permissions');
+			return;
+		}
+
+		try {
+			const permissions = this._securityManager.getActivePermissions();
+			this._postMessage({
+				type: 'activePermissions',
+				data: permissions
+			});
+		} catch (error) {
+			logError(error, 'Send active permissions');
 		}
 	}
 

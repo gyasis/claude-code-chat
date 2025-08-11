@@ -230,6 +230,65 @@
           "type": "number",
           "default": 30000,
           "description": "Auto-refresh interval in milliseconds"
+        },
+        "claudeCodeChat.security.permissionLevel": {
+          "type": "string",
+          "enum": [
+            "workspace-only",
+            "contextual",
+            "session-override",
+            "workspace-override",
+            "danger-mode"
+          ],
+          "default": "workspace-only",
+          "description": "Security permission level for file access"
+        },
+        "claudeCodeChat.security.allowedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Glob patterns for always-allowed paths outside workspace"
+        },
+        "claudeCodeChat.security.deniedPaths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "/etc/passwd",
+            "/etc/shadow",
+            "~/.ssh/*",
+            "*.key",
+            "*.pem"
+          ],
+          "description": "Glob patterns for always-denied paths"
+        },
+        "claudeCodeChat.security.auditLog": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable audit logging for all permission attempts"
+        },
+        "claudeCodeChat.security.sessionTimeout": {
+          "type": "number",
+          "default": 3600000,
+          "description": "Session permission timeout in milliseconds (1 hour default)"
+        },
+        "claudeCodeChat.security.showFilePreview": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show file content preview in permission dialogs"
+        },
+        "claudeCodeChat.security.maxPreviewSize": {
+          "type": "number",
+          "default": 10240,
+          "description": "Maximum file size to preview in bytes (10KB default)"
+        },
+        "claudeCodeChat.security.autoGrantSafePaths": {
+          "type": "boolean",
+          "default": true,
+          "description": "Auto-grant permissions for commonly safe paths"
         }
       }
     }
@@ -243,6 +302,7 @@
     "test": "vscode-test"
   },
   "devDependencies": {
+    "@types/minimatch": "^5.1.2",
     "@types/mocha": "^10.0.10",
     "@types/node": "20.x",
     "@types/vscode": "^1.94.0",
@@ -253,5 +313,8 @@
     "@vscode/vsce": "^3.5.0",
     "eslint": "^9.25.1",
     "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "minimatch": "^10.0.3"
   }
 }
