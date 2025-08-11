@@ -364,12 +364,15 @@ class ClaudeChatProvider {
 		this._setupWebviewMessageHandler(this._panel.webview);
 		
 		// Initialize permissions first, then resume session
+		logDebug('Starting permissions initialization...');
 		this._initializePermissions().then(() => {
+			logDebug('Permissions initialized successfully, starting webview...');
 			// Resume session from latest conversation
 			this._initializeWebview();
 		}).catch((error) => {
 			logError(error, 'Permissions initialization');
 			// Initialize webview anyway, even if permissions fail
+			logDebug('Permissions failed, starting webview anyway...');
 			this._initializeWebview();
 		});
 	}
@@ -383,6 +386,7 @@ class ClaudeChatProvider {
 	}
 
 	private _sendReadyMessage() {
+		logDebug('Sending ready message to UI');
 		// Send current session info if available
 		/*if (this._currentSessionId) {
 			this._postMessage({
@@ -559,25 +563,33 @@ class ClaudeChatProvider {
 		this._setupWebviewMessageHandler(this._webview);
 		
 		// Initialize permissions and webview in sequence
+		logDebug('Starting sidebar permissions initialization...');
 		this._initializePermissions().then(() => {
+			logDebug('Sidebar permissions initialized successfully, starting webview...');
 			this._initializeWebview();
 		}).catch((error) => {
-			logError(error, 'Permissions initialization');
+			logError(error, 'Sidebar permissions initialization');
 			// Initialize webview anyway, even if permissions fail
+			logDebug('Sidebar permissions failed, starting webview anyway...');
 			this._initializeWebview();
 		});
 	}
 
 	private _initializeWebview() {
+		logDebug('Initializing webview...');
 		// Resume session from latest conversation
 		const latestConversation = this._getLatestConversation();
 		this._currentSessionId = latestConversation?.sessionId;
+		
+		logDebug(`Latest conversation: ${latestConversation ? latestConversation.filename : 'none'}`);
 
 		// Load latest conversation history if available
 		if (latestConversation) {
+			logDebug('Loading conversation history...');
 			this._loadConversationHistory(latestConversation.filename);
 		} else {
 			// If no conversation to load, send ready immediately
+			logDebug('No conversation to load, sending ready message');
 			setTimeout(() => {
 				this._sendReadyMessage();
 			}, 100);
@@ -1408,14 +1420,20 @@ class ClaudeChatProvider {
 
 	private async _initializePermissions(): Promise<void> {
 		try {
+			logDebug('_initializePermissions: Starting...');
 
 			if (this._permissionWatcher) {
+				logDebug('_initializePermissions: Disposing existing watcher');
 				this._permissionWatcher.dispose();
 				this._permissionWatcher = undefined;
 			}
 
 			const storagePath = this._context.storageUri?.fsPath;
-			if (!storagePath) { return; }
+			logDebug(`_initializePermissions: Storage path: ${storagePath}`);
+			if (!storagePath) { 
+				logDebug('_initializePermissions: No storage path, returning');
+				return; 
+			}
 
 			// Create permission requests directory
 			this._permissionRequestsPath = path.join(path.join(storagePath, 'permission-requests'));
@@ -1442,8 +1460,9 @@ class ClaudeChatProvider {
 
 			this._disposables.push(this._permissionWatcher);
 
+			logDebug('_initializePermissions: Completed successfully');
 		} catch (error: any) {
-			console.error('Failed to initialize permissions:', error.message);
+			logError(error, '_initializePermissions');
 		}
 	}
 

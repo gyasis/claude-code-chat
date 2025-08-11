@@ -163,11 +163,11 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 						<h3>🔄 Claude CLI Sync</h3>
 						<div class="sync-controls">
 							<label class="toggle-switch">
-								<input type="checkbox" id="syncAllToggle" onchange="toggleSyncAll(this.checked)">
+								<input type="checkbox" id="syncAllToggle">
 								<span class="toggle-slider"></span>
 								<span class="toggle-label">Sync All</span>
 							</label>
-							<button class="btn outlined small" onclick="refreshCLIServers()" title="Refresh CLI servers">
+							<button class="btn outlined small" id="refreshMCPServersBtn" title="Refresh CLI servers">
 								<span class="refresh-icon">↻</span> Refresh
 							</button>
 						</div>
@@ -1541,6 +1541,7 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		}
 
 		function updateStatusWithTotals() {
+			console.log('UI: updateStatusWithTotals called, isProcessing:', isProcessing);
 			if (isProcessing) {
 				// While processing, show tokens and elapsed time
 				const totalTokens = totalTokensInput + totalTokensOutput;
@@ -2580,6 +2581,10 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			
 			switch (message.type) {
 				case 'ready':
+					console.log('UI: Received ready message:', message.data);
+					console.log('UI: isProcessing state:', isProcessing);
+					// Force status to ready
+					updateStatus('Ready to chat with Claude Code!', 'ready');
 					addMessage(message.data, 'system');
 					updateStatusWithTotals();
 					break;
@@ -3456,6 +3461,8 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					type: 'loadMCPSyncServers'
 				});
 				settingsModal.style.display = 'flex';
+				// Initialize MCP sync listeners when modal opens
+				initializeMCPSyncListeners();
 			} else {
 				hideSettingsModal();
 			}
@@ -3668,6 +3675,24 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			lastSync: null
 		};
 
+		// Initialize MCP sync event listeners
+		function initializeMCPSyncListeners() {
+			const syncAllToggle = document.getElementById('syncAllToggle');
+			const refreshBtn = document.getElementById('refreshMCPServersBtn');
+			
+			if (syncAllToggle) {
+				syncAllToggle.addEventListener('change', function() {
+					toggleSyncAll(this.checked);
+				});
+			}
+			
+			if (refreshBtn) {
+				refreshBtn.addEventListener('click', function() {
+					refreshCLIServers();
+				});
+			}
+		}
+
 		// Toggle sync all functionality
 		function toggleSyncAll(enabled) {
 			console.log('Toggle sync all:', enabled);
@@ -3761,8 +3786,14 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				cliServersList.innerHTML = '<div class="no-cli-servers">' +
 					'<p>No CLI servers found.</p>' +
 					'<p class="help-text">Make sure Claude CLI is installed and configured with MCP servers.</p>' +
-					'<button class="btn outlined small" onclick="refreshCLIServers()">Try Again</button>' +
+					'<button class="btn outlined small" id="tryAgainBtn">Try Again</button>' +
 					'</div>';
+				
+				// Add event listener for try again button
+				const tryAgainBtn = document.getElementById('tryAgainBtn');
+				if (tryAgainBtn) {
+					tryAgainBtn.addEventListener('click', refreshCLIServers);
+				}
 				return;
 			}
 			
@@ -3774,12 +3805,12 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				const statusIcon = isActive ? '✅' : '⭕';
 				const conflictIcon = hasConflict ? ' ⚠️' : '';
 				
-				html += '<div class="cli-server-item" data-server-name="' + server.name + '">' +
+				const escapedServerName = server.name.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
+				html += '<div class="cli-server-item" data-server-name="' + escapedServerName + '">' +
 					'<label class="server-checkbox-label">' +
 					'<input type="checkbox" class="cli-server-checkbox server-checkbox" ' +
-					'data-server-name="' + server.name + '" ' +
-					(isActive ? 'checked ' : '') +
-					'onchange="toggleCLIServer(\'' + server.name + '\', this.checked)">' +
+					'data-server-name="' + escapedServerName + '" ' +
+					(isActive ? 'checked ' : '') + '>' +
 					'<span class="server-info">' +
 					'<span class="server-name">' + server.name + conflictIcon + '</span>' +
 					'<span class="server-source">[CLI]</span>' +
@@ -3791,6 +3822,16 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			});
 			
 			cliServersList.innerHTML = html;
+			
+			// Add event listeners for server checkboxes (instead of inline JavaScript)
+			const serverCheckboxes = cliServersList.querySelectorAll('.cli-server-checkbox');
+			serverCheckboxes.forEach(checkbox => {
+				checkbox.addEventListener('change', function() {
+					const serverName = this.dataset.serverName.replace(/&apos;/g, "'").replace(/&quot;/g, '"');
+					const isActive = this.checked;
+					toggleCLIServer(serverName, isActive);
+				});
+			});
 			
 			// Update sync status
 			updateSyncStatus();
