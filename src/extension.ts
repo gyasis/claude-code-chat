@@ -547,6 +547,9 @@ class ClaudeChatProvider {
 			case 'getActivePermissions':
 				this._sendActivePermissions();
 				return;
+			case 'detectAgent':
+				this._detectAgentFromMessage(message.message);
+				return;
 		}
 	}
 
@@ -3042,6 +3045,39 @@ class ClaudeChatProvider {
 		} catch (error) {
 			console.error('Error creating image file:', error);
 			vscode.window.showErrorMessage('Failed to create image file');
+		}
+	}
+
+	private _detectAgentFromMessage(message: string): void {
+		// Use hybrid CLI manager to detect agent usage
+		const agentDetection = this._hybridCliManager.isAgentCommand(message);
+		
+		if (agentDetection.isAgent && agentDetection.agentInfo) {
+			// Send agent activation to UI
+			this._postMessage({
+				type: 'agentDetected',
+				agentInfo: agentDetection.agentInfo
+			});
+			
+			// Also get suggestions for related agents
+			const suggestions = this._hybridCliManager.suggestAgents(message);
+			if (suggestions.length > 0) {
+				this._postMessage({
+					type: 'agentSuggestions',
+					suggestions: suggestions
+				});
+			}
+			
+			console.log(`Agent detected: ${agentDetection.agentName}`, agentDetection.agentInfo);
+		} else {
+			// Check for suggestions even if no direct agent match
+			const suggestions = this._hybridCliManager.suggestAgents(message);
+			if (suggestions.length > 0) {
+				this._postMessage({
+					type: 'agentSuggestions',
+					suggestions: suggestions
+				});
+			}
 		}
 	}
 

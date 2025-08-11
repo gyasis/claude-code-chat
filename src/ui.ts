@@ -8,6 +8,14 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 	${styles}
 </head>
 <body>
+	<!-- Agent Visual Indicators -->
+	<div id="agentBackground" class="agent-active-background"></div>
+	<div id="agentStatusBar" class="agent-status-bar"></div>
+	<div id="agentIndicator" class="agent-indicator">
+		<span class="agent-icon">🤖</span>
+		<span class="agent-name">Agent</span>
+	</div>
+
 	<div class="header">
 		<div style="display: flex; align-items: center;">
 			<h2>Claude Code Chat</h2>
@@ -766,6 +774,64 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		const sendBtn = document.getElementById('sendBtn');
 		const statusDiv = document.getElementById('status');
 		const statusTextDiv = document.getElementById('statusText');
+		
+		// Agent Visual System
+		let currentAgent = null;
+		let agentTransitionTimeout = null;
+		
+		function setAgentVisuals(agentInfo) {
+			if (agentTransitionTimeout) {
+				clearTimeout(agentTransitionTimeout);
+			}
+			
+			currentAgent = agentInfo;
+			const agentBackground = document.getElementById('agentBackground');
+			const agentStatusBar = document.getElementById('agentStatusBar');  
+			const agentIndicator = document.getElementById('agentIndicator');
+			
+			if (agentInfo) {
+				// Set CSS custom properties for the agent color
+				document.documentElement.style.setProperty('--agent-color', agentInfo.color);
+				
+				// Update indicator content
+				const agentIcon = agentIndicator.querySelector('.agent-icon');
+				const agentName = agentIndicator.querySelector('.agent-name');
+				agentIcon.textContent = agentInfo.icon;
+				agentName.textContent = agentInfo.name.replace('-', ' ');
+				
+				// Activate visual elements with smooth transitions
+				agentBackground.classList.add('active');
+				agentStatusBar.classList.add('active');
+				agentIndicator.classList.add('active');
+				
+				console.log(\`Agent \${agentInfo.name} activated with color \${agentInfo.color}\`);
+			} else {
+				// Deactivate agent visuals
+				agentBackground.classList.remove('active');
+				agentStatusBar.classList.remove('active'); 
+				agentIndicator.classList.remove('active');
+				
+				// Reset after transition
+				agentTransitionTimeout = setTimeout(() => {
+					document.documentElement.style.removeProperty('--agent-color');
+					currentAgent = null;
+				}, 1000);
+				
+				console.log('Agent visuals deactivated');
+			}
+		}
+		
+		function clearAgentVisuals() {
+			setAgentVisuals(null);
+		}
+		
+		function detectAgentFromMessage(message) {
+			// Send to extension for agent detection
+			vscode.postMessage({
+				type: 'detectAgent',
+				message: message
+			});
+		}
 		const filePickerModal = document.getElementById('filePickerModal');
 		const fileSearchInput = document.getElementById('fileSearchInput');
 		const fileList = document.getElementById('fileList');
@@ -1477,6 +1543,9 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			const text = messageInput.value.trim();
 			if (text) {
 				sendStats('Send message');
+				
+				// Detect potential agent usage
+				detectAgentFromMessage(text);
 				
 				vscode.postMessage({
 					type: 'sendMessage',
@@ -2653,6 +2722,21 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					updateStatus('Ready to chat with Claude Code!', 'ready');
 					addMessage(message.data, 'system');
 					updateStatusWithTotals();
+					break;
+					
+				case 'agentDetected':
+					// Activate agent visuals when agent is detected
+					setAgentVisuals(message.agentInfo);
+					break;
+					
+				case 'agentDeactivated':
+					// Clear agent visuals
+					clearAgentVisuals();
+					break;
+					
+				case 'agentSuggestions':
+					// Show agent suggestions (could be used for auto-complete or suggestions)
+					console.log('Agent suggestions:', message.suggestions);
 					break;
 					
 				case 'restoreInputText':

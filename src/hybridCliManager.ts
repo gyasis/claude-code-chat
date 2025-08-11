@@ -25,6 +25,16 @@ export interface CommandInfo {
 	requiresCLI: boolean;
 	category: 'core' | 'project' | 'system' | 'unknown';
 	icon?: string;
+	color?: string;
+}
+
+export interface AgentInfo {
+	name: string;
+	description: string;
+	category: 'development' | 'analysis' | 'security' | 'optimization' | 'documentation' | 'testing' | 'infrastructure' | 'custom';
+	color: string;
+	icon: string;
+	isActive?: boolean;
 }
 
 export interface CLICapabilities {
@@ -39,12 +49,14 @@ export class HybridCliManager {
 	private static instance: HybridCliManager;
 	private cliCapabilities: CLICapabilities | null = null;
 	private knownCommands: Map<string, CommandInfo> = new Map();
+	private knownAgents: Map<string, AgentInfo> = new Map();
 	private readonly CACHE_TTL = 300000; // 5 minutes
 	private readonly context: vscode.ExtensionContext;
 
 	private constructor(context: vscode.ExtensionContext) {
 		this.context = context;
 		this.initializeKnownCommands();
+		this.initializeKnownAgents();
 	}
 
 	public static getInstance(context?: vscode.ExtensionContext): HybridCliManager {
@@ -90,6 +102,69 @@ export class HybridCliManager {
 
 		knownCommands.forEach(cmd => {
 			this.knownCommands.set(cmd.name, cmd);
+		});
+	}
+
+	/**
+	 * Initialize known agents with color coding based on function/psychology
+	 */
+	private initializeKnownAgents(): void {
+		const knownAgents: AgentInfo[] = [
+			// Security & Analysis Agents (Red/Orange tones - caution, authority)
+			{ name: 'security-auditor', description: 'Security vulnerability analysis', category: 'security', color: '#FF6B6B', icon: '🛡️' },
+			{ name: 'error-detective', description: 'Debug and troubleshoot issues', category: 'analysis', color: '#FF8E53', icon: '🔍' },
+			{ name: 'incident-responder', description: 'Handle production incidents', category: 'security', color: '#D63031', icon: '🚨' },
+			
+			// Development Agents (Blue/Teal tones - logic, clarity, problem-solving)
+			{ name: 'debugger', description: 'Debug code issues', category: 'development', color: '#4ECDC4', icon: '🐛' },
+			{ name: 'code-reviewer', description: 'Review code quality', category: 'development', color: '#74B9FF', icon: '👀' },
+			{ name: 'frontend-developer', description: 'Frontend development', category: 'development', color: '#00CEC9', icon: '🎨' },
+			{ name: 'backend-architect', description: 'Backend architecture design', category: 'development', color: '#0984E3', icon: '🏗️' },
+			{ name: 'python-pro', description: 'Python development expert', category: 'development', color: '#3F88C5', icon: '🐍' },
+			{ name: 'javascript-pro', description: 'JavaScript development expert', category: 'development', color: '#F7DC6F', icon: '⚡' },
+			{ name: 'cpp-pro', description: 'C++ development expert', category: 'development', color: '#6C5CE7', icon: '⚙️' },
+			{ name: 'golang-pro', description: 'Go development expert', category: 'development', color: '#00D2D3', icon: '🐹' },
+			{ name: 'rust-pro', description: 'Rust development expert', category: 'development', color: '#CE5A57', icon: '🦀' },
+			
+			// Testing & Quality (Green tones - success, validation, stability)
+			{ name: 'test-automator', description: 'Automated testing', category: 'testing', color: '#55A3FF', icon: '🧪' },
+			{ name: 'architect-reviewer', description: 'Architecture review', category: 'analysis', color: '#26DE81', icon: '🏛️' },
+			
+			// Documentation & Content (Yellow/Beige tones - clarity, communication)
+			{ name: 'api-documenter', description: 'API documentation', category: 'documentation', color: '#FD79A8', icon: '📚' },
+			{ name: 'content-marketer', description: 'Content creation', category: 'documentation', color: '#FDCB6E', icon: '✍️' },
+			
+			// Infrastructure & DevOps (Purple/Dark tones - system management, stability)
+			{ name: 'devops-troubleshooter', description: 'DevOps and deployment', category: 'infrastructure', color: '#A29BFE', icon: '⚡' },
+			{ name: 'cloud-architect', description: 'Cloud infrastructure', category: 'infrastructure', color: '#6C5CE7', icon: '☁️' },
+			{ name: 'database-admin', description: 'Database administration', category: 'infrastructure', color: '#2D3436', icon: '🗄️' },
+			{ name: 'network-engineer', description: 'Network configuration', category: 'infrastructure', color: '#636E72', icon: '🌐' },
+			{ name: 'terraform-specialist', description: 'Infrastructure as Code', category: 'infrastructure', color: '#5F3DC4', icon: '🏗️' },
+			
+			// AI & Data (Cyan/Teal tones - intelligence, data processing)
+			{ name: 'ai-engineer', description: 'AI/ML development', category: 'development', color: '#00CEC9', icon: '🤖' },
+			{ name: 'ml-engineer', description: 'Machine learning', category: 'development', color: '#00B894', icon: '🧠' },
+			{ name: 'data-scientist', description: 'Data analysis', category: 'analysis', color: '#0984E3', icon: '📊' },
+			{ name: 'data-engineer', description: 'Data pipeline engineering', category: 'infrastructure', color: '#74B9FF', icon: '🔄' },
+			
+			// Optimization & Performance (Bright colors - energy, improvement)
+			{ name: 'performance-engineer', description: 'Performance optimization', category: 'optimization', color: '#E17055', icon: '⚡' },
+			{ name: 'database-optimizer', description: 'Database optimization', category: 'optimization', color: '#FDCB6E', icon: '🚀' },
+			{ name: 'dx-optimizer', description: 'Developer experience', category: 'optimization', color: '#FD79A8', icon: '✨' },
+			
+			// Business & Support (Warm tones - communication, service)
+			{ name: 'business-analyst', description: 'Business analysis', category: 'analysis', color: '#E84393', icon: '📈' },
+			{ name: 'customer-support', description: 'Customer support', category: 'documentation', color: '#FFEAA7', icon: '💬' },
+			{ name: 'legal-advisor', description: 'Legal compliance', category: 'documentation', color: '#DDA0DD', icon: '⚖️' },
+			
+			// Specialized Tools (Mixed bright colors)
+			{ name: 'payment-integration', description: 'Payment systems', category: 'development', color: '#00B894', icon: '💳' },
+			{ name: 'mobile-developer', description: 'Mobile app development', category: 'development', color: '#FF7675', icon: '📱' },
+			{ name: 'legacy-modernizer', description: 'Legacy system updates', category: 'optimization', color: '#A29BFE', icon: '🔄' },
+		];
+
+		knownAgents.forEach(agent => {
+			this.knownAgents.set(agent.name, agent);
 		});
 	}
 
@@ -314,5 +389,96 @@ export class HybridCliManager {
 	 */
 	public getCLIInfo(): CLICapabilities | null {
 		return this.cliCapabilities;
+	}
+
+	/**
+	 * Get agent information by name
+	 */
+	public getAgentInfo(agentName: string): AgentInfo | undefined {
+		return this.knownAgents.get(agentName);
+	}
+
+	/**
+	 * Get all known agents
+	 */
+	public getAllAgents(): AgentInfo[] {
+		return Array.from(this.knownAgents.values()).sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	/**
+	 * Get agents by category
+	 */
+	public getAgentsByCategory(category: string): AgentInfo[] {
+		return Array.from(this.knownAgents.values())
+			.filter(agent => agent.category === category)
+			.sort((a, b) => a.name.localeCompare(b.name));
+	}
+
+	/**
+	 * Detect if a command is likely invoking an agent
+	 */
+	public isAgentCommand(message: string): { isAgent: boolean; agentName?: string; agentInfo?: AgentInfo } {
+		// Look for @agent-name patterns
+		const agentMentionMatch = message.match(/@([a-z-]+)/);
+		if (agentMentionMatch) {
+			const agentName = agentMentionMatch[1];
+			const agentInfo = this.knownAgents.get(agentName);
+			if (agentInfo) {
+				return { isAgent: true, agentName, agentInfo };
+			}
+		}
+
+		// Look for agent-like keywords in the message
+		const agentKeywords = Array.from(this.knownAgents.keys());
+		for (const agentName of agentKeywords) {
+			// Simple heuristic: if message contains agent name or related keywords
+			if (message.toLowerCase().includes(agentName) || 
+				message.toLowerCase().includes(agentName.replace('-', ' '))) {
+				const agentInfo = this.knownAgents.get(agentName);
+				return { isAgent: true, agentName, agentInfo };
+			}
+		}
+
+		return { isAgent: false };
+	}
+
+	/**
+	 * Get agent suggestions based on message content
+	 */
+	public suggestAgents(message: string): AgentInfo[] {
+		const suggestions: AgentInfo[] = [];
+		const messageLower = message.toLowerCase();
+
+		// Keywords mapping for intelligent suggestions
+		const keywordMapping = {
+			'security': ['security-auditor', 'incident-responder'],
+			'bug': ['debugger', 'error-detective'],
+			'debug': ['debugger', 'error-detective'],
+			'frontend': ['frontend-developer'],
+			'backend': ['backend-architect'],
+			'database': ['database-admin', 'database-optimizer'],
+			'test': ['test-automator'],
+			'deploy': ['devops-troubleshooter', 'cloud-architect'],
+			'performance': ['performance-engineer'],
+			'documentation': ['api-documenter', 'content-marketer'],
+			'python': ['python-pro'],
+			'javascript': ['javascript-pro'],
+			'react': ['frontend-developer'],
+			'api': ['backend-architect', 'api-documenter']
+		};
+
+		// Find matching agents based on keywords
+		for (const [keyword, agents] of Object.entries(keywordMapping)) {
+			if (messageLower.includes(keyword)) {
+				agents.forEach(agentName => {
+					const agentInfo = this.knownAgents.get(agentName);
+					if (agentInfo && !suggestions.includes(agentInfo)) {
+						suggestions.push(agentInfo);
+					}
+				});
+			}
+		}
+
+		return suggestions.slice(0, 3); // Return top 3 suggestions
 	}
 }

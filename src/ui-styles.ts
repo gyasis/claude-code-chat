@@ -3207,6 +3207,183 @@ const styles = `
         color: var(--vscode-descriptionForeground);
         opacity: 0.7;
     }
+
+    /* Agent Color Coding System */
+    .agent-active-background {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        z-index: -1;
+        opacity: 0;
+        transition: all 0.8s ease-in-out;
+        background: linear-gradient(135deg, transparent 0%, transparent 85%, var(--agent-color, #4ECDC4) 100%);
+        pointer-events: none;
+    }
+
+    .agent-active-background.active {
+        opacity: 0.05;
+    }
+
+    .agent-status-bar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: linear-gradient(90deg, var(--agent-color, #4ECDC4) 0%, transparent 100%);
+        z-index: 1000;
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+    }
+
+    .agent-status-bar.active {
+        opacity: 0.8;
+    }
+
+    .agent-indicator {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: var(--agent-color, #4ECDC4);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.75em;
+        font-weight: 500;
+        z-index: 1000;
+        opacity: 0;
+        transform: translateX(20px);
+        transition: all 0.3s ease-in-out;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    .agent-indicator.active {
+        opacity: 1;
+        transform: translateX(0);
+    }
+
+    .agent-indicator .agent-icon {
+        font-size: 1em;
+    }
+
+    /* Chat Message Agent Attribution */
+    .message.agent-message {
+        border-left: 3px solid var(--agent-color, #4ECDC4);
+        background: linear-gradient(90deg, rgba(from var(--agent-color, #4ECDC4) r g b / 0.1), transparent 100%);
+        padding-left: 12px;
+    }
+
+    .message.agent-message .message-content::before {
+        content: attr(data-agent-icon) " " attr(data-agent-name);
+        display: block;
+        font-size: 0.75em;
+        font-weight: 500;
+        color: var(--agent-color, #4ECDC4);
+        margin-bottom: 4px;
+        opacity: 0.8;
+    }
+
+    /* Agent Selection Modal */
+    .agents-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        padding: 16px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .agent-card {
+        background: var(--vscode-editor-background);
+        border: 1px solid var(--vscode-panel-border);
+        border-radius: 8px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .agent-card::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--agent-color, #4ECDC4);
+        transition: height 0.2s ease;
+    }
+
+    .agent-card:hover {
+        border-color: var(--agent-color, #4ECDC4);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .agent-card:hover::before {
+        height: 6px;
+    }
+
+    .agent-card-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 8px;
+    }
+
+    .agent-card-icon {
+        font-size: 1.2em;
+        width: 24px;
+        text-align: center;
+    }
+
+    .agent-card-name {
+        font-weight: 500;
+        font-size: 0.9em;
+        color: var(--vscode-foreground);
+    }
+
+    .agent-card-description {
+        font-size: 0.8em;
+        color: var(--vscode-descriptionForeground);
+        line-height: 1.3;
+    }
+
+    .agent-card-category {
+        position: absolute;
+        top: 8px;
+        right: 8px;
+        font-size: 0.7em;
+        background: rgba(from var(--agent-color, #4ECDC4) r g b / 0.2);
+        color: var(--agent-color, #4ECDC4);
+        padding: 2px 6px;
+        border-radius: 10px;
+        text-transform: uppercase;
+        font-weight: 500;
+    }
+
+    /* Enhanced Commands Modal with Agent Support */
+    .slash-command-item.agent-command {
+        border-left: 3px solid var(--agent-color, #4ECDC4);
+        background: linear-gradient(90deg, rgba(from var(--agent-color, #4ECDC4) r g b / 0.08), transparent 50%);
+    }
+
+    .slash-command-item.agent-command .slash-command-icon {
+        color: var(--agent-color, #4ECDC4);
+    }
+
+    /* Smooth transitions for theme changes */
+    body * {
+        transition-property: background-color, border-color, color, box-shadow;
+        transition-duration: 0.2s;
+        transition-timing-function: ease;
+    }
 </style>`
 
 export default styles
