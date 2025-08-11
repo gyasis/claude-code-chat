@@ -2301,6 +2301,12 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		// Slash commands modal functions
 		function showSlashCommandsModal() {
 			document.getElementById('slashCommandsModal').style.display = 'flex';
+			
+			// Request available commands from the extension
+			vscode.postMessage({
+				type: 'getAvailableCommands'
+			});
+			
 			// Auto-focus the search input
 			setTimeout(() => {
 				document.getElementById('slashCommandsSearch').focus();
@@ -2309,6 +2315,71 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 
 		function hideSlashCommandsModal() {
 			document.getElementById('slashCommandsModal').style.display = 'none';
+		}
+		
+		function updateCommandsList(commands, cliInfo) {
+			const nativeCommandsList = document.getElementById('nativeCommandsList');
+			if (!nativeCommandsList) return;
+			
+			// Clear existing commands
+			nativeCommandsList.innerHTML = '';
+			
+			// Add status info if CLI is available
+			if (cliInfo && cliInfo.isValid) {
+				const statusDiv = document.createElement('div');
+				statusDiv.className = 'cli-status-info';
+				statusDiv.innerHTML = \`
+					<div style="font-size: 0.8em; color: var(--vscode-descriptionForeground); margin-bottom: 12px; padding: 8px; background: var(--vscode-editor-background); border-radius: 4px;">
+						<strong>Claude CLI v\${cliInfo.version}</strong> - \${cliInfo.availableCommands.size} commands detected
+					</div>
+				\`;
+				nativeCommandsList.appendChild(statusDiv);
+			}
+			
+			// Group commands by category
+			const categorizedCommands = {};
+			commands.forEach(cmd => {
+				const category = cmd.category || 'unknown';
+				if (!categorizedCommands[category]) {
+					categorizedCommands[category] = [];
+				}
+				categorizedCommands[category].push(cmd);
+			});
+			
+			// Render commands by category
+			const categoryOrder = ['core', 'system', 'project', 'unknown'];
+			categoryOrder.forEach(category => {
+				if (categorizedCommands[category]) {
+					categorizedCommands[category].forEach(cmd => {
+						const commandElement = document.createElement('div');
+						commandElement.className = 'slash-command-item';
+						if (!cmd.hasUIHandler) {
+							commandElement.classList.add('terminal-command');
+						}
+						
+						// Add agent command styling if it's an agent-related command
+						if (cmd.name === 'agents' || cmd.description.toLowerCase().includes('agent')) {
+							commandElement.classList.add('agent-command');
+							commandElement.style.setProperty('--agent-color', '#4ECDC4');
+						}
+						
+						const icon = cmd.icon || (cmd.hasUIHandler ? '🎛️' : '⚡');
+						
+						commandElement.innerHTML = \`
+							<div class="slash-command-icon">\${icon}</div>
+							<div class="slash-command-content">
+								<div class="slash-command-title">/\${cmd.name}</div>
+								<div class="slash-command-description">\${cmd.description}</div>
+							</div>
+						\`;
+						
+						commandElement.onclick = () => executeSlashCommand(cmd.name);
+						nativeCommandsList.appendChild(commandElement);
+					});
+				}
+			});
+			
+			console.log(\`Updated commands list with \${commands.length} commands\`);
 		}
 
 		// Thinking intensity modal functions
@@ -2737,6 +2808,11 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 				case 'agentSuggestions':
 					// Show agent suggestions (could be used for auto-complete or suggestions)
 					console.log('Agent suggestions:', message.suggestions);
+					break;
+					
+				case 'availableCommands':
+					// Update the commands modal with dynamic command list
+					updateCommandsList(message.data.commands, message.data.cliInfo);
 					break;
 					
 				case 'restoreInputText':

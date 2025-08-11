@@ -550,6 +550,9 @@ class ClaudeChatProvider {
 			case 'detectAgent':
 				this._detectAgentFromMessage(message.message);
 				return;
+			case 'getAvailableCommands':
+				this._sendAvailableCommands();
+				return;
 		}
 	}
 
@@ -3078,6 +3081,30 @@ class ClaudeChatProvider {
 					suggestions: suggestions
 				});
 			}
+		}
+	}
+
+	private async _sendAvailableCommands(): Promise<void> {
+		try {
+			// Get all available commands from hybrid CLI manager
+			const allCommands = await this._hybridCliManager.getAllCommands();
+			const cliInfo = this._hybridCliManager.getCLIInfo();
+			
+			this._postMessage({
+				type: 'availableCommands',
+				data: {
+					commands: allCommands,
+					cliInfo: cliInfo
+				}
+			});
+			
+			console.log(`Sent ${allCommands.length} available commands to UI`);
+		} catch (error) {
+			console.error('Error getting available commands:', error);
+			this._postMessage({
+				type: 'error',
+				data: 'Failed to get available commands'
+			});
 		}
 	}
 
