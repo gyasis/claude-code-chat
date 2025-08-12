@@ -4,6 +4,78 @@ All notable changes to the "claude-code-chat" extension will be documented in th
 
 Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
 
+## [1.1.1] - 2025-08-12
+
+### 🚀 Major Features Added
+
+#### **Three-Source MCP Server Integration**
+- **CLI Sync Integration** - Automatically syncs servers from Claude CLI configuration (`claude_config.json`)
+- **Extension Server Management** - Local servers managed directly by the extension in extension storage
+- **Global Extension Config** - Additional servers from `~/.claude/mcp.json` for cross-extension compatibility
+- **Unified Server Registry** - All three sources merge seamlessly when running Claude with complete server availability
+- **Smart Conflict Resolution** - Intelligent handling when servers appear in multiple sources
+
+#### **Agent Color Coding System** 🎨
+- **40+ Agent Support** - Visual representation for all Claude agents with unique color schemes
+- **Color Psychology Mapping** - Red for security agents, blue for development, green for data analysis, purple for creative tasks, etc.
+- **Real-time Visual Indicators** - Active agent indication with background color coding in chat interface
+- **Agent Function Classification** - Colors grouped by agent specialization and purpose
+- **Enhanced User Experience** - Instant visual recognition of which agent type is active
+
+#### **Dynamic Command Detection & Enhanced /agents**
+- **Dynamic Command Loading** - Slash commands are now dynamically loaded from Claude CLI instead of hardcoded
+- **Working /agents Command** - Fixed and enhanced /agents command with proper agent color coding integration
+- **Fallback System** - Graceful handling of unknown or newly added commands from CLI updates
+- **Future-Proof Architecture** - Automatically supports new commands added to Claude CLI
+- **Command Context Awareness** - Better integration between extension and CLI command execution
+
+#### **Enhanced MCP Modal with Save/Cancel State Management**
+- **Proper State Management** - Modal changes are now properly tracked and managed
+- **Save/Cancel Buttons** - Changes only applied when user clicks Save, with Cancel to discard
+- **State Persistence** - Modal state persists between opens until Save or Cancel is clicked
+- **User Experience Enhancement** - No accidental changes applied, clear user intent required
+- **Visual Feedback** - Clear indication of unsaved changes and current modal state
+
+### 🎨 UI/UX Improvements
+
+#### **Agent Visual Integration**
+- **Color-Coded Agent Indicators** - Background colors dynamically update based on active agent
+- **Consistent Color Scheme** - Professional color palette that integrates with VS Code themes
+- **Subtle Visual Cues** - Non-intrusive but clear indication of agent specialization
+- **Accessibility Considerations** - Color choices work well with different VS Code themes and accessibility settings
+
+#### **Enhanced Modal Experience**
+- **Improved State Feedback** - Clear visual indication of saved vs unsaved changes
+- **Better Button States** - Save/Cancel buttons with appropriate enabled/disabled states
+- **Consistent Modal Behavior** - Unified modal experience across all configuration dialogs
+
+### 🔧 Technical Enhancements
+
+#### **Architecture Improvements**
+- **Three-Source MCP Architecture** - Robust system for merging multiple MCP server sources
+- **State Management Refactor** - Better separation of concerns for modal state handling
+- **Command Loading System** - Dynamic command detection with proper error handling
+- **Agent Color System** - Efficient color mapping and real-time updates
+
+#### **Performance Optimizations**
+- **Efficient Server Merging** - Optimized algorithm for combining multiple MCP server sources
+- **Dynamic Command Caching** - Commands loaded once and cached for better performance
+- **State Management Optimization** - Reduced unnecessary re-renders and state updates
+
+### 🐛 Bug Fixes
+- Fixed /agents command not working properly with agent detection
+- Resolved MCP modal state persistence issues
+- Fixed color coding not updating correctly for different agents
+- Improved command fallback handling for unknown commands
+- Enhanced error handling for MCP server source conflicts
+- Fixed modal state leaking between different configuration dialogs
+
+### 📚 Documentation Updates
+- Updated README.md with comprehensive v1.1.1 feature documentation
+- Enhanced MCP server integration examples and configuration guides
+- Added agent color coding system documentation
+- Improved troubleshooting guides for multi-source MCP setup
+
 ## [1.0.5] - 2025-07-30
 
 ### 🚀 Features Added

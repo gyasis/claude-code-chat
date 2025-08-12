@@ -1,10 +1,11 @@
-# 🚀 Claude Code Chat - Beautiful Claude Code Chat Interface for VS Code
+# 🚀 Claude Code Chat v1.1.1 - Beautiful Claude Code Chat Interface for VS Code
 
 [![VS Code Extension](https://img.shields.io/badge/VS%20Code-Extension-blue?style=for-the-badge&logo=visual-studio-code)](https://marketplace.visualstudio.com/items?itemName=andrepimenta.claude-code-chat)
 [![Claude Code](https://img.shields.io/badge/Powered%20by-Claude%20Code-orange?style=for-the-badge)](https://claude.ai/code)
 [![TypeScript](https://img.shields.io/badge/Built%20with-TypeScript-3178C6?style=for-the-badge&logo=typescript)](https://www.typescriptlang.org/)
 
 > **No more terminal commands. Chat with Claude Code through a beautiful, intuitive interface right inside VS Code.**
+> **New in v1.1.1: Agent Color Coding, Three-Source MCP Integration, Dynamic Commands**
 
 Ditch the command line and experience Claude Code like never before. This extension brings a stunning chat interface directly into your editor, making AI assistance accessible, visual, and enjoyable.
 
@@ -16,11 +17,12 @@ Ditch the command line and experience Claude Code like never before. This extens
 
 🖥️ **No Terminal Required** - Beautiful chat interface replaces command-line interactions  
 ⏪ **Restore Checkpoints** - Undo changes and restore code to any previous state   
-🔌 **MCP Server Support** - Complete Model Context Protocol server management   
+🔌 **Three-Source MCP Integration** - CLI sync, extension servers, and global config all merged seamlessly  
+🎨 **Agent Color Coding** - 40+ agents with visual color indicators based on specialization
 💾 **Conversation History** - Automatic conversation history and session management  
-🎨 **VS Code Native** - Claude Code integrated directly into VS Code with native theming and sidebar support  
-🧠 **Plan and Thinking modes** - Plan First and configurable Thinking modes for better results  
-⚡ **Smart File/Image Context and Custom Commands** - Reference any file, paste images or screenshots and create custom commands  
+🧠 **VS Code Native** - Claude Code integrated directly into VS Code with native theming and sidebar support  
+⚡ **Dynamic Commands** - Slash commands automatically loaded from Claude CLI with /agents support
+🖼️ **Smart File/Image Context** - Reference any file, paste images or screenshots for visual context  
 🤖 **Model Selection** - Choose between Opus, Sonnet, or Default based on your needs  
 🐧 **Windows/WSL Support** - Full native Windows and WSL support
 
@@ -47,15 +49,16 @@ Ditch the command line and experience Claude Code like never before. This extens
 - Real-time cost and token tracking
 - Session statistics and performance metrics
 
-### 🔌 **MCP Server Management** ⭐ **ENHANCED IN V1.0.7**
+### 🔌 **MCP Server Management** ⭐ **MAJOR UPGRADE IN V1.1.1**
+- **Three-Source Integration** - Merges servers from CLI config, extension storage, and global extension config
 - **CLI Config Synchronization** - Automatically sync and activate servers from your Claude CLI configuration
-- **Selective Server Activation** - Choose which CLI servers to activate with individual checkboxes
-- **Sync All Toggle** - Quickly activate/deactivate all available CLI servers
-- **State Persistence** - Remember server activation preferences across VS Code sessions
+- **Extension Server Management** - Local servers managed directly by the extension
+- **Global Extension Config** - Additional servers from `~/.claude/mcp.json`
+- **Unified Server Registry** - All three sources merge seamlessly when running Claude
+- **Modal State Management** - Save/Cancel buttons with proper state persistence
+- **Real-time Configuration** - Changes only applied when Save is clicked
 - **Popular Servers Gallery** - One-click installation of common MCP servers
 - **Custom Server Creation** - Build and configure your own MCP servers
-- **Server Management** - Edit, delete, enable/disable servers through UI
-- **Automatic Integration** - Seamless permissions and tool integration
 - **Cross-platform Support** - Full WSL compatibility with path conversion
 
 ### 🔒 **Advanced Permissions System** ⭐ **NEW IN V1.0**
@@ -105,14 +108,30 @@ Ditch the command line and experience Claude Code like never before. This extens
 - Visual confirmation when switching between models
 - One-click model configuration through integrated terminal
 
-### ⚡ **Slash Commands Integration**
-- **Slash Commands Modal** - Type "/" to access all Claude Code commands instantly
-- **19+ Built-in Commands** - /cost, /status, /config, /help, /memory, /review, and more
-- **Custom Command Support** - Execute any Claude Code command with session context
+### ⚡ **Slash Commands Integration** ⭐ **ENHANCED IN V1.1.1**
+- **Dynamic Command Detection** - Commands are now dynamically loaded from Claude CLI
+- **Enhanced /agents Command** - Now works properly with agent color coding
+- **40+ Agent Support** - Full integration with Claude's agent ecosystem
+- **Fallback System** - Graceful handling of unknown or new commands
 - **Session-Aware Execution** - All commands run with current conversation context
 - **Terminal Integration** - Commands open directly in VS Code terminal with WSL support
 
-### 🧠 **Advanced AI Modes**
+### 🎨 **Agent Color Coding System** ⭐ **NEW IN V1.1.1**
+- **Visual Agent Recognition** - Each of the 40+ Claude agents has a unique background color
+- **Color Psychology Mapping** - Intuitive color scheme based on agent specialization:
+  - 🔴 **Red Tones** - Security, permissions, and safety-focused agents
+  - 🔵 **Blue Tones** - Development, coding, and technical agents
+  - 🟢 **Green Tones** - Data analysis, research, and information agents
+  - 🟣 **Purple Tones** - Creative, design, and artistic agents
+  - 🟡 **Yellow Tones** - Communication, documentation, and writing agents
+- **Real-time Indicators** - Chat interface dynamically shows active agent colors
+- **Enhanced UX** - Instant visual feedback about which specialized agent is handling your request
+- **Theme Integration** - Colors work seamlessly with all VS Code themes (light/dark/high contrast)
+
+### 🧠 **Advanced AI Modes** ⭐ **NEW IN V1.1.1**
+- **Agent Color Coding** - 40+ agents with unique background colors based on their function
+- **Visual Agent Indicators** - Color psychology system (red=security, blue=dev, green=data, etc.)
+- **Active Agent Display** - Real-time indication when specific agents are active
 - **Plan First Mode** - Toggle to make Claude plan before implementing changes
 - **Thinking Mode** - Configurable intensity levels (Think, Think Hard, Think Harder, Ultrathink)
 - **Mode Toggles** - Simple switches above the text input area
@@ -136,7 +155,7 @@ ext install claude-code-chat
 ```
 
 #### Option 2: Install from This Fork (Includes NVM Integration & MCP Sync)
-Since this is a fork with NVM integration and MCP sync features, you'll need to build and install it manually:
+Since this is a fork with advanced MCP integration, agent color coding, and enhanced features, you'll need to build and install it manually:
 
 1. **Clone and build the extension**:
    ```bash
@@ -146,11 +165,11 @@ Since this is a fork with NVM integration and MCP sync features, you'll need to 
    npm run compile
    npx @vscode/vsce package
    ```
-   This will create `claude-code-chat-sam-1.0.7.vsix` in the project directory.
+   This will create `claude-code-chat-sam-1.1.1.vsix` in the project directory.
 
 2. **Install the VSIX**:
    - **Method A**: In VS Code, go to Extensions → "..." → "Install from VSIX" → Select the `.vsix` file
-   - **Method B**: Command line: `code --install-extension claude-code-chat-sam-1.0.7.vsix`
+   - **Method B**: Command line: `code --install-extension claude-code-chat-sam-1.1.1.vsix`
    - **Method C**: Drag and drop the `.vsix` file into VS Code
 
 3. **Configure NVM Integration** (Optional but Recommended):
@@ -252,6 +271,36 @@ Here's the refactored component using hooks:
 [Shows the new implementation]
 
 If you want to revert these changes, just click "Restore Checkpoint" to go back to your original code instantly.
+```
+
+### 🎨 **Agent Color Coding in Action** ⭐ **NEW IN V1.1.1**
+```
+You: /agents
+
+Claude: [Background turns blue indicating development agent is active]
+🔵 DevAgent: Here are all available agents:
+- SecurityAgent (🔴 Red) - Handles security, permissions, and safety
+- DataAnalyst (🟢 Green) - Processes data, creates charts and analysis
+- DesignAgent (🟣 Purple) - UI/UX design and creative tasks
+- TechnicalWriter (🟡 Yellow) - Documentation and communication
+... [40+ agents with color indicators]
+
+You: Analyze the security vulnerabilities in my authentication system
+
+Claude: [Background shifts to red indicating SecurityAgent is now active]
+🔴 SecurityAgent: I'll analyze your authentication system for security vulnerabilities...
+```
+
+### 🔌 **Three-Source MCP Integration** ⭐ **NEW IN V1.1.1**
+```
+You: [Opens MCP settings]
+
+Extension automatically merges:
+✅ CLI Servers (from claude_config.json): playwright, postgres, filesystem
+✅ Extension Servers: permissions-mcp, custom-tools
+✅ Global Config (~/.claude/mcp.json): shared-database, api-tools
+
+All 6 servers available in unified interface with Save/Cancel state management.
 ```
 
 ---

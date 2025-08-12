@@ -1764,6 +1764,16 @@ const styles = `
         padding: 4px;
     }
 
+    .tools-modal-footer {
+        padding: 16px 20px;
+        border-top: 1px solid var(--vscode-panel-border);
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+        flex-shrink: 0;
+        background-color: var(--vscode-editor-background);
+    }
+
     .tools-beta-warning {
         padding: 12px 16px;
         background-color: var(--vscode-notifications-warningBackground);

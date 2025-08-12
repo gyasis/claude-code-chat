@@ -1891,27 +1891,32 @@ class ClaudeChatProvider {
 
 	private async _loadMCPServers(): Promise<void> {
 		try {
-			const mcpConfigPath = this.getMCPConfigPath();
-			if (!mcpConfigPath) {
+			// Load from extension's local storage only (for Extension Servers section)
+			const storagePath = this._context.storageUri?.fsPath;
+			if (!storagePath) {
 				this._postMessage({ type: 'mcpServers', data: {} });
 				return;
 			}
 
-			const mcpConfigUri = vscode.Uri.file(mcpConfigPath);
+			const localConfigPath = path.join(storagePath, 'mcp', 'mcp-servers.json');
 			let mcpConfig: any = { mcpServers: {} };
 
-			try {
-				const content = await vscode.workspace.fs.readFile(mcpConfigUri);
-				mcpConfig = JSON.parse(new TextDecoder().decode(content));
-			} catch (error) {
-				console.log('MCP config file not found or error reading:', error);
-				// File doesn't exist, return empty servers
+			const fs = require('fs');
+			if (fs.existsSync(localConfigPath)) {
+				try {
+					const localContent = fs.readFileSync(localConfigPath, 'utf8');
+					mcpConfig = JSON.parse(localContent);
+					console.log(`Loaded ${Object.keys(mcpConfig.mcpServers || {}).length} extension servers`);
+				} catch (error) {
+					console.error('Error reading extension MCP config:', error);
+				}
 			}
 
 			// Filter out internal servers before sending to UI
 			const filteredServers = Object.fromEntries(
 				Object.entries(mcpConfig.mcpServers || {}).filter(([name]) => name !== 'claude-code-chat-permissions')
 			);
+			
 			this._postMessage({ type: 'mcpServers', data: filteredServers });
 		} catch (error) {
 			console.error('Error loading MCP servers:', error);
@@ -2086,11 +2091,77 @@ class ClaudeChatProvider {
 	}
 
 	public getMCPConfigPath(): string | undefined {
+		// Create a merged config from all sources
+		const fs = require('fs');
+		const os = require('os');
 		const storagePath = this._context.storageUri?.fsPath;
 		if (!storagePath) { return undefined; }
 
-		const configPath = path.join(storagePath, 'mcp', 'mcp-servers.json');
-		return path.join(configPath);
+		// Create a temporary merged config path
+		const mergedConfigPath = path.join(storagePath, 'mcp', 'merged-mcp-config.json');
+		
+		try {
+			let mergedConfig: any = { mcpServers: {} };
+			
+			// 1. Load CLI synced servers (if sync is enabled)
+			if (this._mcpSyncManager) {
+				const syncedServers = this._mcpSyncManager.getAllServers()
+					.filter(s => s.isActive && s.source === 'cli');
+				
+				// Get the actual CLI config to get full server details
+				const cliConfig = this._mcpSyncManager.getCliConfig();
+				if (cliConfig && cliConfig.mcpServers) {
+					for (const server of syncedServers) {
+						if (cliConfig.mcpServers[server.name]) {
+							mergedConfig.mcpServers[server.name] = cliConfig.mcpServers[server.name];
+						}
+					}
+				}
+			}
+			
+			// 2. Load extension's local servers
+			const localConfigPath = path.join(storagePath, 'mcp', 'mcp-servers.json');
+			if (fs.existsSync(localConfigPath)) {
+				try {
+					const localContent = fs.readFileSync(localConfigPath, 'utf8');
+					const localConfig = JSON.parse(localContent);
+					if (localConfig.mcpServers) {
+						Object.assign(mergedConfig.mcpServers, localConfig.mcpServers);
+					}
+				} catch (error) {
+					console.error('Error reading local MCP config:', error);
+				}
+			}
+			
+			// 3. Load global extension config from ~/.claude/mcp.json
+			const globalMCPPath = path.join(os.homedir(), '.claude', 'mcp.json');
+			if (fs.existsSync(globalMCPPath)) {
+				try {
+					const globalContent = fs.readFileSync(globalMCPPath, 'utf8');
+					const globalConfig = JSON.parse(globalContent);
+					if (globalConfig.mcpServers) {
+						Object.assign(mergedConfig.mcpServers, globalConfig.mcpServers);
+					}
+				} catch (error) {
+					console.error('Error reading global MCP config:', error);
+				}
+			}
+			
+			// Write the merged config
+			const mergedDir = path.dirname(mergedConfigPath);
+			if (!fs.existsSync(mergedDir)) {
+				fs.mkdirSync(mergedDir, { recursive: true });
+			}
+			fs.writeFileSync(mergedConfigPath, JSON.stringify(mergedConfig, null, 2));
+			
+			console.log(`Created merged MCP config with ${Object.keys(mergedConfig.mcpServers).length} servers`);
+			return mergedConfigPath;
+			
+		} catch (error) {
+			console.error('Error creating merged MCP config:', error);
+			// Fallback to local config path
+			return path.join(storagePath, 'mcp', 'mcp-servers.json');
+		}
 	}
 
 	private _sendAndSaveMessage(message: { type: string, data: any }): void {

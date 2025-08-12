@@ -16,6 +16,7 @@ export class MCPSyncManager {
 	private cliServers: MCPServer[] = [];
 	private extensionServers: MCPServer[] = [];
 	private refreshTimer: NodeJS.Timeout | null = null;
+	private cliConfig: ClaudeCLIConfig | null = null;
 
 	constructor(context: vscode.ExtensionContext) {
 		this.context = context;
@@ -111,6 +112,9 @@ export class MCPSyncManager {
 		if (hasChanged) {
 			logDebug('CLI config has changed, refreshing servers');
 		}
+
+		// Save the CLI config for later use
+		this.cliConfig = config;
 
 		// Convert CLI config to MCPServer objects
 		this.cliServers = Object.entries(config.mcpServers).map(([name, serverConfig]) => {
@@ -363,6 +367,13 @@ export class MCPSyncManager {
 	 */
 	public getSyncState(): MCPSyncState | null {
 		return this.syncState;
+	}
+
+	/**
+	 * Get the loaded CLI configuration
+	 */
+	public getCliConfig(): ClaudeCLIConfig | null {
+		return this.cliConfig;
 	}
 
 	/**

@@ -297,6 +297,12 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					<button class="btn outlined" onclick="hideAddServerForm()">Cancel</button>
 				</div>
 			</div>
+			
+			<!-- MCP Modal Footer with Save/Cancel buttons -->
+			<div class="tools-modal-footer">
+				<button class="btn" onclick="saveMCPChanges()">Save Changes</button>
+				<button class="btn outlined" onclick="cancelMCPChanges()">Cancel</button>
+			</div>
 		</div>
 	</div>
 	</div>
@@ -1975,6 +1981,14 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		}
 
 		function hideMCPModal() {
+			// Check for unsaved changes
+			if (pendingMCPChanges && pendingMCPChanges.hasChanges) {
+				const confirmed = confirm('You have unsaved changes. Are you sure you want to close without saving?');
+				if (!confirmed) {
+					return; // Don't close the modal
+				}
+			}
+			
 			document.getElementById('mcpModal').style.display = 'none';
 			hideAddServerForm();
 		}
@@ -3903,6 +3917,13 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			lastSync: null
 		};
 
+		// Track pending changes for MCP modal
+		let pendingMCPChanges = {
+			hasChanges: false,
+			syncAll: false,
+			activeServers: []
+		};
+
 		// Initialize MCP sync event listeners
 		function initializeMCPSyncListeners() {
 			const syncAllToggle = document.getElementById('syncAllToggle');
@@ -3921,19 +3942,15 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			}
 		}
 
-		// Toggle sync all functionality
+		// Toggle sync all functionality (now updates pending state)
 		function toggleSyncAll(enabled) {
-			console.log('Toggle sync all:', enabled);
-			mcpSyncState.syncAll = enabled;
+			console.log('Toggle sync all (pending):', enabled);
+			pendingMCPChanges.syncAll = enabled;
+			pendingMCPChanges.hasChanges = true;
 			
-			// Send message to extension
-			vscode.postMessage({
-				type: 'toggleSyncAll',
-				enabled: enabled
-			});
-			
-			// Update UI state
+			// Update UI state immediately for user feedback
 			updateSyncAllUI(enabled);
+			updateMCPSaveButtonState();
 		}
 
 		// Update sync all UI elements
@@ -3945,30 +3962,28 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 					checkbox.disabled = true; // Gray out individual checkboxes
 				} else {
 					checkbox.disabled = false;
-					// Restore individual states from saved preferences
+					// Restore individual states from pending or current preferences
 					const serverName = checkbox.dataset.serverName;
-					checkbox.checked = mcpSyncState.activeServers.includes(serverName);
+					const activeServers = pendingMCPChanges.hasChanges ? 
+						pendingMCPChanges.activeServers : mcpSyncState.activeServers;
+					checkbox.checked = activeServers.includes(serverName);
 				}
 			});
 		}
 
-		// Toggle individual CLI server
+		// Toggle individual CLI server (now updates pending state)
 		function toggleCLIServer(serverName, isActive) {
-			console.log('Toggle CLI server:', serverName, isActive);
+			console.log('Toggle CLI server (pending):', serverName, isActive);
 			
-			// Update local state
-			if (isActive && !mcpSyncState.activeServers.includes(serverName)) {
-				mcpSyncState.activeServers.push(serverName);
+			// Update pending state
+			if (isActive && !pendingMCPChanges.activeServers.includes(serverName)) {
+				pendingMCPChanges.activeServers.push(serverName);
 			} else if (!isActive) {
-				mcpSyncState.activeServers = mcpSyncState.activeServers.filter(name => name !== serverName);
+				pendingMCPChanges.activeServers = pendingMCPChanges.activeServers.filter(name => name !== serverName);
 			}
 			
-			// Send message to extension
-			vscode.postMessage({
-				type: 'toggleCLIServer',
-				serverName: serverName,
-				isActive: isActive
-			});
+			pendingMCPChanges.hasChanges = true;
+			updateMCPSaveButtonState();
 			
 			// Update status indicator
 			updateServerStatusIndicator(serverName, isActive);
@@ -4008,6 +4023,34 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 			if (!cliServersList) {
 				console.log('CLI servers list element not found');
 				return;
+			}
+			
+			// Update mcpSyncState with the received data
+			if (config) {
+				mcpSyncState.syncAll = config.syncAll || false;
+				mcpSyncState.lastSync = config.lastSync || null;
+				
+				// Use selectedServers from config if available, otherwise extract from servers
+				if (config.selectedServers && config.selectedServers.length > 0) {
+					mcpSyncState.activeServers = config.selectedServers;
+				} else if (servers && servers.length > 0) {
+					mcpSyncState.activeServers = servers
+						.filter(server => server.isActive)
+						.map(server => server.name);
+				} else {
+					mcpSyncState.activeServers = [];
+				}
+				
+				// Update the sync all toggle
+				const syncAllToggle = document.getElementById('syncAllToggle');
+				if (syncAllToggle) {
+					syncAllToggle.checked = mcpSyncState.syncAll;
+				}
+			} else if (servers && servers.length > 0) {
+				// If no config, extract active servers from server list
+				mcpSyncState.activeServers = servers
+					.filter(server => server.isActive)
+					.map(server => server.name);
 			}
 			
 			if (!servers || servers.length === 0) {
@@ -4080,6 +4123,9 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 		function showMCPModal() {
 			document.getElementById('mcpModal').style.display = 'flex';
 			
+			// Initialize pending changes tracking
+			initializeMCPSync();
+			
 			// Load CLI servers
 			refreshCLIServers();
 			
@@ -4091,13 +4137,139 @@ const getHtml = (isTelemetryEnabled: boolean) => `<!DOCTYPE html>
 
 		// Initialize MCP sync when modal opens
 		function initializeMCPSync() {
+			// Initialize pending changes with current state
+			pendingMCPChanges = {
+				hasChanges: false,
+				syncAll: mcpSyncState.syncAll,
+				activeServers: [...mcpSyncState.activeServers]
+			};
+			
+			// Set UI elements to current state
+			const syncAllToggle = document.getElementById('syncAllToggle');
+			if (syncAllToggle) {
+				syncAllToggle.checked = mcpSyncState.syncAll;
+			}
+			updateSyncAllUI(mcpSyncState.syncAll);
+			
 			// Request current sync state from extension
 			vscode.postMessage({
 				type: 'getMCPSyncState'
 			});
+			
+			updateMCPSaveButtonState();
+		}
+
+		// Update save button state based on pending changes
+		function updateMCPSaveButtonState() {
+			const saveButton = document.querySelector('.tools-modal-footer .btn:not(.outlined)');
+			if (saveButton) {
+				if (pendingMCPChanges.hasChanges) {
+					saveButton.textContent = 'Save Changes';
+					saveButton.style.background = 'var(--vscode-button-background)';
+					saveButton.style.color = 'var(--vscode-button-foreground)';
+				} else {
+					saveButton.textContent = 'No Changes';
+					saveButton.style.background = 'var(--vscode-button-secondaryBackground)';
+					saveButton.style.color = 'var(--vscode-button-secondaryForeground)';
+				}
+			}
+		}
+
+		// Save MCP changes
+		function saveMCPChanges() {
+			if (!pendingMCPChanges.hasChanges) {
+				hideMCPModal();
+				return;
+			}
+			
+			console.log('Saving MCP changes:', pendingMCPChanges);
+			
+			// Apply sync all setting
+			if (mcpSyncState.syncAll !== pendingMCPChanges.syncAll) {
+				mcpSyncState.syncAll = pendingMCPChanges.syncAll;
+				vscode.postMessage({
+					type: 'toggleMCPSyncAll',
+					enabled: pendingMCPChanges.syncAll
+				});
+			}
+			
+			// Apply individual server changes
+			const currentServers = new Set(mcpSyncState.activeServers);
+			const pendingServers = new Set(pendingMCPChanges.activeServers);
+			
+			// Find servers that were toggled on
+			for (const serverName of pendingServers) {
+				if (!currentServers.has(serverName)) {
+					vscode.postMessage({
+						type: 'toggleMCPSyncServer',
+						serverName: serverName,
+						isActive: true
+					});
+				}
+			}
+			
+			// Find servers that were toggled off
+			for (const serverName of currentServers) {
+				if (!pendingServers.has(serverName)) {
+					vscode.postMessage({
+						type: 'toggleMCPSyncServer',
+						serverName: serverName,
+						isActive: false
+					});
+				}
+			}
+			
+			// Update local state
+			mcpSyncState.activeServers = [...pendingMCPChanges.activeServers];
+			
+			// Reset pending changes
+			pendingMCPChanges.hasChanges = false;
+			updateMCPSaveButtonState();
+			
+			// Show confirmation
+			vscode.postMessage({
+				type: 'showMessage',
+				level: 'info',
+				message: 'MCP server settings saved successfully!'
+			});
+			
+			hideMCPModal();
+		}
+
+		// Cancel MCP changes
+		function cancelMCPChanges() {
+			if (pendingMCPChanges.hasChanges) {
+				// Restore UI to current state
+				const syncAllToggle = document.getElementById('syncAllToggle');
+				if (syncAllToggle) {
+					syncAllToggle.checked = mcpSyncState.syncAll;
+				}
+				updateSyncAllUI(mcpSyncState.syncAll);
+				
+				// Restore individual server checkboxes
+				const checkboxes = document.querySelectorAll('.cli-server-checkbox');
+				checkboxes.forEach(checkbox => {
+					const serverName = checkbox.dataset.serverName;
+					checkbox.checked = mcpSyncState.activeServers.includes(serverName);
+				});
+				
+				// Reset pending changes
+				pendingMCPChanges = {
+					hasChanges: false,
+					syncAll: mcpSyncState.syncAll,
+					activeServers: [...mcpSyncState.activeServers]
+				};
+				updateMCPSaveButtonState();
+			}
+			
+			hideMCPModal();
 		}
 
 		// ====== END MCP SYNC FUNCTIONS ======
+
+		// Expose MCP functions globally for onclick access
+		window.saveMCPChanges = saveMCPChanges;
+		window.cancelMCPChanges = cancelMCPChanges;
 
 		// Add settings message handler to window message event
 		const originalMessageHandler = window.onmessage;
